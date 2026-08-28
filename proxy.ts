@@ -4,7 +4,7 @@ import { createServerClient } from '@supabase/ssr'
 // Public routes reachable without a session. Everything else is login-first.
 const PUBLIC_PATHS = ['/auth', '/api/auth']
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient(
