@@ -3,7 +3,8 @@
 import { useState } from "react"
 import { AnimatePresence, motion } from "framer-motion"
 import { DashboardSidebar } from "@/components/dashboard/dashboard-sidebar"
-import { CoursesView } from "@/components/dashboard/courses-view"
+import { CursosProtocol } from "@/components/dashboard/cursos-protocol"
+import { MisionesLibrary } from "@/components/dashboard/misiones-library"
 import { ChatView } from "@/components/dashboard/chat-view"
 import { PlaceholderView } from "@/components/dashboard/placeholder-view"
 import type { ViewId } from "@/lib/dashboard/data"
@@ -26,11 +27,18 @@ export default function DashboardPage() {
           >
             {view === "courses" && (
               <div className="h-full overflow-y-auto">
-                <CoursesView />
+                <CursosProtocol />
+              </div>
+            )}
+            {view === "misiones" && (
+              <div className="h-full overflow-y-auto">
+                <MisionesLibrary />
               </div>
             )}
             {view === "chat" && <ChatView />}
-            {view !== "courses" && view !== "chat" && <PlaceholderView view={view} />}
+            {view !== "courses" && view !== "misiones" && view !== "chat" && (
+              <PlaceholderView view={view} />
+            )}
           </motion.div>
         </AnimatePresence>
       </main>

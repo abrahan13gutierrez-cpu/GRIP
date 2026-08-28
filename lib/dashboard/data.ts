@@ -1,6 +1,7 @@
 export type ViewId =
   | "chat"
   | "courses"
+  | "misiones"
   | "friends"
   | "wallet"
   | "rank"
