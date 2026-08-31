@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { AnimatePresence, motion } from "framer-motion"
 import { DashboardSidebar } from "@/components/dashboard/dashboard-sidebar"
-import { CursosProtocol } from "@/components/dashboard/cursos-protocol"
+import { CoursesView } from "@/components/dashboard/courses-view"
 import { MisionesLibrary } from "@/components/dashboard/misiones-library"
 import { FeedbackView } from "@/components/dashboard/feedback-view"
 import { ChatView } from "@/components/dashboard/chat-view"
@@ -32,8 +32,8 @@ export default function DashboardPage() {
             className="h-full"
           >
             {view === "courses" && (
-              <div className="h-full overflow-y-auto">
-                <CursosProtocol />
+              <div className="h-full">
+                <CoursesView />
               </div>
             )}
             {view === "misiones" && (
