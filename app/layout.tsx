@@ -2,6 +2,7 @@ import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono, Oswald } from 'next/font/google'
 import './globals.css'
+import { SuppressResizeObserverError } from '@/components/suppress-resize-observer-error'
 
 const geistSans = Geist({ subsets: ['latin'], variable: '--font-geist-sans' })
 const geistMono = Geist_Mono({
@@ -38,6 +39,7 @@ export default function RootLayout({
       className={`dark bg-background ${geistSans.variable} ${geistMono.variable} ${oswald.variable}`}
     >
       <body className="font-sans antialiased">
+        <SuppressResizeObserverError />
         {children}
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
