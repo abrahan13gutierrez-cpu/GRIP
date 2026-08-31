@@ -14,8 +14,13 @@ export default function DashboardPage() {
 
   return (
     <div className="flex h-[100dvh] overflow-hidden bg-[#0a0e1a] text-[#e8ebf2]">
-      <DashboardSidebar active={view} onSelect={setView} />
-      <main className="min-w-0 flex-1 overflow-hidden p-3 md:p-5">
+      {/* On mobile the icon bar is hidden inside the Chat view (opened via the header hamburger); it stays visible for every other view and on md+. */}
+      <div className={`h-full shrink-0 ${view === "chat" ? "hidden md:block" : "block"}`}>
+        <DashboardSidebar active={view} onSelect={setView} />
+      </div>
+      <main
+        className={`min-w-0 flex-1 overflow-hidden md:p-5 ${view === "chat" ? "p-0" : "p-3"}`}
+      >
         <AnimatePresence mode="wait">
           <motion.div
             key={view}
@@ -35,7 +40,7 @@ export default function DashboardPage() {
                 <MisionesLibrary />
               </div>
             )}
-            {view === "chat" && <ChatView />}
+            {view === "chat" && <ChatView activeView={view} onNavigate={setView} />}
             {view !== "courses" && view !== "misiones" && view !== "chat" && (
               <PlaceholderView view={view} />
             )}
