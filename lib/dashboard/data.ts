@@ -63,33 +63,45 @@ export const COURSES: Course[] = [
 
 export type ChannelGroup = {
   label: string
-  channels: { id: string; name: string; unread?: number; live?: boolean }[]
+  emoji: string
+  channels: { id: string; name: string; emoji: string; unread?: number; live?: boolean }[]
 }
 
 export const CHANNEL_GROUPS: ChannelGroup[] = [
   {
-    label: "START HERE",
+    label: "INFORMATION",
+    emoji: "📁",
     channels: [
-      { id: "welcome", name: "welcome" },
-      { id: "announcements", name: "announcements", unread: 2 },
-      { id: "rules", name: "rules" },
+      { id: "announcements", name: "announcements", emoji: "📣" },
+      { id: "gutispeech", name: "gutispeech", emoji: "📖" },
     ],
   },
   {
-    label: "TRAINING",
+    label: "CALL ARCHIVE",
+    emoji: "⚡",
+    channels: [{ id: "energy-calls", name: "energy-calls", emoji: "⚡" }],
+  },
+  {
+    label: "LEADERBOARD",
+    emoji: "📊",
     channels: [
-      { id: "daily-broadcast", name: "daily-broadcast", live: true },
-      { id: "film-room", name: "film-room", unread: 5 },
-      { id: "framing-lab", name: "framing-lab" },
-      { id: "pop-time", name: "pop-time" },
+      { id: "g-of-the-week", name: "g-of-the-week", emoji: "🏅" },
+      { id: "wins", name: "wins", emoji: "🏆" },
+      { id: "leaderboard", name: "leaderboard", emoji: "📊" },
     ],
   },
   {
-    label: "GENERAL",
+    label: "CHATS",
+    emoji: "💬",
+    channels: [{ id: "grip-chat", name: "grip-chat", emoji: "💬" }],
+  },
+  {
+    label: "DAILY LESSONS",
+    emoji: "📅",
     channels: [
-      { id: "general", name: "general", unread: 12 },
-      { id: "wins", name: "wins" },
-      { id: "gear-talk", name: "gear-talk" },
+      { id: "wake-up-say-gm", name: "wake-up-say-gm", emoji: "☀️" },
+      { id: "daily-checklist", name: "daily-checklist", emoji: "✅" },
+      { id: "daily-lessons", name: "daily-lessons", emoji: "⛑️" },
     ],
   },
 ]

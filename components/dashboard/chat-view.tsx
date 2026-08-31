@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { motion } from "framer-motion"
-import { Hash, Play, Mic, Smile, Paperclip, Send } from "lucide-react"
+import { Hash, Play, Mic, Smile, Paperclip, Send, Bot, ChevronDown, ChevronRight } from "lucide-react"
 import {
   CHANNEL_GROUPS,
   MESSAGES,
@@ -18,45 +18,71 @@ const ROLE_STYLES: Record<string, string> = {
 }
 
 function ChannelList({ active, onSelect }: { active: string; onSelect: (id: string) => void }) {
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
+  const toggle = (label: string) => setCollapsed((prev) => ({ ...prev, [label]: !prev[label] }))
+
   return (
-    <div className="flex h-full w-full flex-col gap-4 overflow-y-auto border-r border-[#1f2740] bg-[#0d1322] p-3">
-      {CHANNEL_GROUPS.map((group) => (
-        <div key={group.label}>
-          <p className="px-2 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#6b7591]">
-            {group.label}
-          </p>
-          <div className="flex flex-col gap-0.5">
-            {group.channels.map((ch) => {
-              const isActive = active === ch.id
-              return (
-                <button
-                  key={ch.id}
-                  onClick={() => onSelect(ch.id)}
-                  className={`flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition-colors ${
-                    isActive
-                      ? "bg-[#d4af37]/10 text-[#e8ebf2]"
-                      : "text-[#8790a6] hover:bg-white/5 hover:text-[#e8ebf2]"
-                  }`}
-                >
-                  <Hash className={`h-4 w-4 shrink-0 ${isActive ? "text-[#d4af37]" : "text-[#5c6480]"}`} />
-                  <span className="flex-1 truncate text-left">{ch.name}</span>
-                  {ch.live && (
-                    <span className="flex items-center gap-1 rounded-full bg-[#ef4444]/15 px-1.5 py-0.5 text-[9px] font-bold uppercase text-[#ff6b6b]">
-                      <span className="h-1.5 w-1.5 rounded-full bg-[#ff6b6b]" />
-                      Live
-                    </span>
-                  )}
-                  {ch.unread ? (
-                    <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-[#d4af37] px-1 text-[10px] font-bold text-[#0a0e1a]">
-                      {ch.unread}
-                    </span>
-                  ) : null}
-                </button>
-              )
-            })}
-          </div>
+    <div className="flex h-full w-full flex-col overflow-y-auto border-r border-[#1f2740] bg-[#0d1322]">
+      <div className="flex items-center gap-2.5 border-b border-[#1f2740] px-3 py-3">
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#d4af37]/15 text-[#d4af37]">
+          <Bot className="h-5 w-5" />
         </div>
-      ))}
+        <span className="text-sm font-bold uppercase tracking-[0.14em] text-[#e8ebf2]">GRIP</span>
+      </div>
+
+      <div className="flex flex-col gap-4 p-3">
+        {CHANNEL_GROUPS.map((group) => {
+          const isCollapsed = collapsed[group.label]
+          return (
+            <div key={group.label}>
+              <button
+                onClick={() => toggle(group.label)}
+                className="flex w-full items-center gap-1.5 px-1 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#6b7591] transition-colors hover:text-[#a3abbf]"
+              >
+                {isCollapsed ? (
+                  <ChevronRight className="h-3 w-3 shrink-0" />
+                ) : (
+                  <ChevronDown className="h-3 w-3 shrink-0" />
+                )}
+                <span className="shrink-0">{group.emoji}</span>
+                <span className="truncate text-left">{group.label}</span>
+              </button>
+              {!isCollapsed && (
+                <div className="flex flex-col gap-0.5">
+                  {group.channels.map((ch) => {
+                    const isActive = active === ch.id
+                    return (
+                      <button
+                        key={ch.id}
+                        onClick={() => onSelect(ch.id)}
+                        className={`flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition-colors ${
+                          isActive
+                            ? "bg-[#d4af37]/10 text-[#e8ebf2]"
+                            : "text-[#8790a6] hover:bg-white/5 hover:text-[#e8ebf2]"
+                        }`}
+                      >
+                        <span className="shrink-0 text-[15px] leading-none">{ch.emoji}</span>
+                        <span className="flex-1 truncate text-left">{ch.name}</span>
+                        {ch.live && (
+                          <span className="flex items-center gap-1 rounded-full bg-[#ef4444]/15 px-1.5 py-0.5 text-[9px] font-bold uppercase text-[#ff6b6b]">
+                            <span className="h-1.5 w-1.5 rounded-full bg-[#ff6b6b]" />
+                            Live
+                          </span>
+                        )}
+                        {ch.unread ? (
+                          <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-[#d4af37] px-1 text-[10px] font-bold text-[#0a0e1a]">
+                            {ch.unread}
+                          </span>
+                        ) : null}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }
@@ -236,7 +262,7 @@ function MemberList() {
 }
 
 export function ChatView() {
-  const [channel, setChannel] = useState("general")
+  const [channel, setChannel] = useState("grip-chat")
   return (
     <div className="flex h-full overflow-hidden rounded-2xl border border-[#1f2740]">
       <div className="hidden w-56 shrink-0 sm:block">
