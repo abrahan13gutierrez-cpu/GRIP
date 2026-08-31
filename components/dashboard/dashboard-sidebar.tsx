@@ -3,13 +3,14 @@
 import { motion } from "framer-motion"
 import Image from "next/image"
 import Link from "next/link"
-import { MessageCircle, Brain, Target, User, Wallet, Crown, ListChecks, ShoppingBag } from "lucide-react"
+import { MessageCircle, Brain, Target, Video, User, Wallet, Crown, ListChecks, ShoppingBag } from "lucide-react"
 import type { ViewId } from "@/lib/dashboard/data"
 
 const NAV: { id: ViewId; label: string; icon: typeof MessageCircle }[] = [
   { id: "chat", label: "Chat", icon: MessageCircle },
   { id: "courses", label: "Cursos", icon: Brain },
   { id: "misiones", label: "Misiones", icon: Target },
+  { id: "feedback", label: "Feedback", icon: Video },
   { id: "friends", label: "Friends", icon: User },
   { id: "wallet", label: "Wallet", icon: Wallet },
   { id: "rank", label: "Rank", icon: Crown },

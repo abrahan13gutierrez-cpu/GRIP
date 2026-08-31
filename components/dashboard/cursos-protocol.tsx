@@ -1,6 +1,8 @@
 "use client"
 
 import { useState } from "react"
+import { MuxVideoPlayer } from "@/components/mux/mux-video-player"
+import { MuxUploader } from "@/components/mux/mux-uploader"
 
 /**
  * GRIP — Cursos (mapa de niveles / protocolo)
@@ -9,6 +11,9 @@ import { useState } from "react"
  */
 
 const OSWALD = "font-[family-name:var(--font-oswald)]"
+
+// Mock coach-lesson playback id (Mux public test asset) until DB wiring lands.
+const MOCK_LESSON_PLAYBACK_ID = "qxb01i6T202018GFS02vp9RIe01icTcDCjVzQpmaB00CUisJ4"
 
 type NodeStatus = "locked" | "open" | "done"
 type RankStatus = "current" | "locked" | "done"
@@ -59,9 +64,12 @@ function NodeIcon({ status }: { status: NodeStatus }) {
 export function CursosProtocol() {
   const [grid, setGrid] = useState<NodeStatus[][]>(makeInitialGrid)
   const [drawer, setDrawer] = useState<{ row: number; col: number } | null>(null)
+  // playbackId of the catcher's just-uploaded attempt clip for the open cell
+  const [uploadedPlaybackId, setUploadedPlaybackId] = useState<string | null>(null)
 
   const openDrawer = (row: number, col: number) => {
     if (grid[row][col] === "locked") return
+    setUploadedPlaybackId(null)
     setDrawer({ row, col })
   }
 
@@ -214,9 +222,14 @@ export function CursosProtocol() {
               </button>
             </div>
             <div className="p-5">
-              <div className="mb-4 flex aspect-video items-center justify-center rounded-lg border border-dashed border-[#262b33] bg-black text-xs text-[#4d545e]">
-                ▶ Video del coach
+              <h4 className="mb-2 text-[11px] uppercase tracking-wider text-[#4d545e]">Video del coach</h4>
+              <div className="mb-4">
+                <MuxVideoPlayer
+                  playbackId={MOCK_LESSON_PLAYBACK_ID}
+                  title={`${SKILLS[drawer.col]} ${SUBLEVELS[drawer.row]}`}
+                />
               </div>
+
               <h4 className="mb-2 text-[11px] uppercase tracking-wider text-[#4d545e]">Qué se evalúa</h4>
               <ul className="space-y-2 text-[13px] text-[#8a919c]">
                 <li className="flex gap-2">
@@ -226,12 +239,31 @@ export function CursosProtocol() {
                   <span className="text-[#ffb020]">▸</span>Transición fluida sin balanceo lateral
                 </li>
               </ul>
+
+              {/* Mi intento: sube un clip y, al terminar, se muestra reproducido */}
+              <div className="mt-5">
+                <h4 className="mb-2 text-[11px] uppercase tracking-wider text-[#4d545e]">Mi intento</h4>
+                {uploadedPlaybackId ? (
+                  <MuxVideoPlayer playbackId={uploadedPlaybackId} title="Mi intento" />
+                ) : (
+                  <MuxUploader
+                    kind="feedback"
+                    refId={`${SKILLS[drawer.col]}-${SUBLEVELS[drawer.row]}`}
+                    label="Subir mi video"
+                    onUploadComplete={() => {
+                      // Sin DB aún: mostramos un asset demo como si fuera el recién subido.
+                      setUploadedPlaybackId(MOCK_LESSON_PLAYBACK_ID)
+                    }}
+                  />
+                )}
+              </div>
+
               <div className="mt-5 flex gap-2.5">
                 <button
                   onClick={approveCurrent}
                   className="rounded-lg bg-[#ffb020] px-4 py-2.5 text-sm font-semibold text-[#0a0c0f]"
                 >
-                  Subir mi video (demo: aprobar)
+                  Marcar como aprobado (demo)
                 </button>
                 <button className="rounded-lg border border-[#262b33] px-4 py-2.5 text-sm font-semibold text-[#eef1f5]">
                   Agendar llamada

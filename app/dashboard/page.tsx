@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "framer-motion"
 import { DashboardSidebar } from "@/components/dashboard/dashboard-sidebar"
 import { CursosProtocol } from "@/components/dashboard/cursos-protocol"
 import { MisionesLibrary } from "@/components/dashboard/misiones-library"
+import { FeedbackView } from "@/components/dashboard/feedback-view"
 import { ChatView } from "@/components/dashboard/chat-view"
 import { PlaceholderView } from "@/components/dashboard/placeholder-view"
 import type { ViewId } from "@/lib/dashboard/data"
@@ -40,8 +41,13 @@ export default function DashboardPage() {
                 <MisionesLibrary />
               </div>
             )}
+            {view === "feedback" && (
+              <div className="h-full overflow-y-auto">
+                <FeedbackView />
+              </div>
+            )}
             {view === "chat" && <ChatView activeView={view} onNavigate={setView} />}
-            {view !== "courses" && view !== "misiones" && view !== "chat" && (
+            {view !== "courses" && view !== "misiones" && view !== "feedback" && view !== "chat" && (
               <PlaceholderView view={view} />
             )}
           </motion.div>

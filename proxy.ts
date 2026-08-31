@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 
 // Public routes reachable without a session. Everything else is login-first.
-const PUBLIC_PATHS = ['/', '/auth', '/api/auth', '/dashboard']
+const PUBLIC_PATHS = ['/', '/auth', '/api/auth', '/api/mux', '/dashboard']
 
 export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
