@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { motion } from "framer-motion"
-import { Hash, Play, Mic, Smile, Paperclip, Send, Bot, ChevronDown, ChevronRight } from "lucide-react"
+import { Hash, Play, Mic, Smile, Paperclip, Send, Bot, ChevronDown, ChevronRight, ArrowLeft } from "lucide-react"
 import {
   CHANNEL_GROUPS,
   MESSAGES,
@@ -151,13 +151,22 @@ function MessageRow({ msg, index }: { msg: Message; index: number }) {
   )
 }
 
-function MessagePane({ channel }: { channel: string }) {
+function MessagePane({ channel, onBack }: { channel: string; onBack?: () => void }) {
   const [text, setText] = useState("")
   const days = ["Yesterday", "Today"] as const
 
   return (
     <div className="flex h-full min-w-0 flex-1 flex-col bg-[#0a0e1a]">
       <header className="flex items-center gap-2 border-b border-[#1f2740] px-4 py-3">
+        {onBack && (
+          <button
+            onClick={onBack}
+            aria-label="Back to channels"
+            className="-ml-1 flex h-8 w-8 items-center justify-center rounded-lg text-[#8790a6] transition-colors hover:bg-white/5 hover:text-[#e8ebf2] sm:hidden"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+        )}
         <Hash className="h-5 w-5 text-[#d4af37]" />
         <span className="font-semibold text-[#e8ebf2]">{channel}</span>
       </header>
@@ -263,12 +272,29 @@ function MemberList() {
 
 export function ChatView() {
   const [channel, setChannel] = useState("grip-chat")
+  const [mobilePane, setMobilePane] = useState<"channels" | "messages">("channels")
+
+  const selectChannel = (id: string) => {
+    setChannel(id)
+    setMobilePane("messages")
+  }
+
   return (
     <div className="flex h-full overflow-hidden rounded-2xl border border-[#1f2740]">
-      <div className="hidden w-56 shrink-0 sm:block">
-        <ChannelList active={channel} onSelect={setChannel} />
+      {/* Channel list: always visible on sm+, toggled on mobile */}
+      <div
+        className={`w-full shrink-0 sm:block sm:w-56 ${mobilePane === "channels" ? "block" : "hidden"}`}
+      >
+        <ChannelList active={channel} onSelect={selectChannel} />
       </div>
-      <MessagePane channel={channel} />
+
+      {/* Messages: full width on mobile when a channel is open, flex-1 on sm+ */}
+      <div
+        className={`min-w-0 flex-1 ${mobilePane === "messages" ? "flex" : "hidden"} sm:flex`}
+      >
+        <MessagePane channel={channel} onBack={() => setMobilePane("channels")} />
+      </div>
+
       <MemberList />
     </div>
   )
