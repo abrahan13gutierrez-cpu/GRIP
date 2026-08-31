@@ -1,6 +1,8 @@
 "use client"
 
 import { motion } from "framer-motion"
+import Image from "next/image"
+import Link from "next/link"
 import { MessageCircle, Brain, Target, User, Wallet, Crown, ListChecks, ShoppingBag } from "lucide-react"
 import type { ViewId } from "@/lib/dashboard/data"
 
@@ -27,15 +29,22 @@ export function DashboardSidebar({
       aria-label="Primary"
       className="flex h-full w-16 shrink-0 flex-col items-stretch gap-1 border-r border-[#1f2740] bg-[#0b101f] py-4 md:w-56"
     >
-      <div className="mb-4 flex items-center gap-3 px-3 md:px-4">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#d4af37] font-mono text-sm font-bold text-[#0a0e1a]">
-          CU
-        </div>
+      <Link
+        href="/dashboard"
+        className="mb-4 flex items-center gap-3 px-3 transition-opacity hover:opacity-80 md:px-4"
+      >
+        <Image
+          src="/grip-logo.png"
+          alt="GRIP"
+          width={36}
+          height={36}
+          className="h-9 w-9 shrink-0 rounded-lg object-cover"
+        />
         <div className="hidden leading-tight md:block">
           <p className="text-sm font-semibold text-[#e8ebf2]">Catching U</p>
           <p className="text-[10px] uppercase tracking-[0.2em] text-[#d4af37]">GRIP</p>
         </div>
-      </div>
+      </Link>
 
       {NAV.map((item) => {
         const Icon = item.icon
