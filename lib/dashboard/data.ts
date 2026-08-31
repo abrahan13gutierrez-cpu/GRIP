@@ -80,7 +80,7 @@ export const CHANNEL_GROUPS: ChannelGroup[] = [
   {
     label: "CALL ARCHIVE",
     emoji: "⚡",
-    channels: [{ id: "energy-calls", name: "energy-calls", emoji: "⚡" }],
+    channels: [{ id: "energy-calls", name: "energy-calls", emoji: "⚡", live: true }],
   },
   {
     label: "LEADERBOARD",

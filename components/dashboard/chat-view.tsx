@@ -30,6 +30,8 @@ import {
   Flag,
 } from "lucide-react"
 import { DashboardSidebar } from "@/components/dashboard/dashboard-sidebar"
+import { LiveCallModal } from "@/components/daily/live-call-modal"
+import { useLiveCall } from "@/components/daily/use-live-call"
 import {
   CHANNEL_GROUPS,
   MESSAGES,
@@ -63,9 +65,11 @@ const MESSAGE_ACTIONS: { label: string; icon: typeof CornerUpLeft }[] = [
 function ChannelList({
   active,
   onSelect,
+  onJoinLive,
 }: {
   active: string
   onSelect: (id: string) => void
+  onJoinLive?: (channelId: string) => void
 }) {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
   const toggle = (label: string) => setCollapsed((prev) => ({ ...prev, [label]: !prev[label] }))
@@ -101,29 +105,39 @@ function ChannelList({
                   {group.channels.map((ch) => {
                     const isActive = active === ch.id
                     return (
-                      <button
-                        key={ch.id}
-                        onClick={() => onSelect(ch.id)}
-                        className={`flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition-colors ${
-                          isActive
-                            ? "bg-[#d4af37]/10 text-[#e8ebf2]"
-                            : "text-[#8790a6] hover:bg-white/5 hover:text-[#e8ebf2]"
-                        }`}
-                      >
-                        <span className="shrink-0 text-[15px] leading-none">{ch.emoji}</span>
-                        <span className="flex-1 truncate text-left">{ch.name}</span>
+                      <div key={ch.id} className={ch.live ? "flex flex-col gap-1" : undefined}>
+                        <button
+                          onClick={() => onSelect(ch.id)}
+                          className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition-colors ${
+                            isActive
+                              ? "bg-[#d4af37]/10 text-[#e8ebf2]"
+                              : "text-[#8790a6] hover:bg-white/5 hover:text-[#e8ebf2]"
+                          }`}
+                        >
+                          <span className="shrink-0 text-[15px] leading-none">{ch.emoji}</span>
+                          <span className="flex-1 truncate text-left">{ch.name}</span>
+                          {ch.live && (
+                            <span className="flex items-center gap-1 rounded-full bg-[#ef4444]/15 px-1.5 py-0.5 text-[9px] font-bold uppercase text-[#ff6b6b]">
+                              <span className="h-1.5 w-1.5 rounded-full bg-[#ff6b6b]" />
+                              Live
+                            </span>
+                          )}
+                          {ch.unread ? (
+                            <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-[#d4af37] px-1 text-[10px] font-bold text-[#0a0e1a]">
+                              {ch.unread}
+                            </span>
+                          ) : null}
+                        </button>
                         {ch.live && (
-                          <span className="flex items-center gap-1 rounded-full bg-[#ef4444]/15 px-1.5 py-0.5 text-[9px] font-bold uppercase text-[#ff6b6b]">
-                            <span className="h-1.5 w-1.5 rounded-full bg-[#ff6b6b]" />
-                            Live
-                          </span>
+                          <button
+                            onClick={() => onJoinLive?.(ch.id)}
+                            className="ml-7 mr-1 flex items-center justify-center gap-1.5 rounded-md bg-[#ef4444] px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-white transition-colors hover:bg-[#dc2626]"
+                          >
+                            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white" />
+                            Unirse
+                          </button>
                         )}
-                        {ch.unread ? (
-                          <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-[#d4af37] px-1 text-[10px] font-bold text-[#0a0e1a]">
-                            {ch.unread}
-                          </span>
-                        ) : null}
-                      </button>
+                      </div>
                     )
                   })}
                 </div>
@@ -418,12 +432,14 @@ function LeftDrawer({
   onSelectChannel,
   onNavigate,
   onClose,
+  onJoinLive,
 }: {
   channel: string
   activeView?: ViewId
   onSelectChannel: (id: string) => void
   onNavigate?: (id: ViewId) => void
   onClose: () => void
+  onJoinLive?: (channelId: string) => void
 }) {
   return (
     <div className="absolute inset-0 z-40 sm:hidden">
@@ -449,7 +465,7 @@ function LeftDrawer({
           }}
         />
         <div className="w-[232px]">
-          <ChannelList active={channel} onSelect={onSelectChannel} />
+          <ChannelList active={channel} onSelect={onSelectChannel} onJoinLive={onJoinLive} />
         </div>
       </motion.div>
     </div>
@@ -734,6 +750,7 @@ export function ChatView({
   const [rightDrawer, setRightDrawer] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const [actionMsg, setActionMsg] = useState<Message | null>(null)
+  const { roomUrl, startCall, closeCall } = useLiveCall()
 
   const unreadTotal = useMemo(
     () => CHANNEL_GROUPS.reduce((sum, g) => sum + g.channels.reduce((s, c) => s + (c.unread ?? 0), 0), 0),
@@ -745,11 +762,17 @@ export function ChatView({
     setLeftDrawer(false)
   }
 
+  const joinLive = (channelId: string) => {
+    setLeftDrawer(false)
+    // La transmisión en vivo comparte una sala estable por canal (topic = channelId).
+    startCall(channelId, 120)
+  }
+
   return (
     <div className="relative flex h-full overflow-hidden border-0 sm:rounded-2xl sm:border sm:border-[#1f2740]">
       {/* Channel list — tablet/desktop only */}
       <div className="hidden w-56 shrink-0 sm:block">
-        <ChannelList active={channel} onSelect={selectChannel} />
+        <ChannelList active={channel} onSelect={selectChannel} onJoinLive={joinLive} />
       </div>
 
       {/* Message pane — always full-screen on mobile */}
@@ -775,12 +798,15 @@ export function ChatView({
             onSelectChannel={selectChannel}
             onNavigate={onNavigate}
             onClose={() => setLeftDrawer(false)}
+            onJoinLive={joinLive}
           />
         )}
         {rightDrawer && <RightDrawer key="right" channel={channel} onClose={() => setRightDrawer(false)} />}
         {searchOpen && <SearchModal key="search" channel={channel} onClose={() => setSearchOpen(false)} />}
         {actionMsg && <MessageActionSheet key="actions" msg={actionMsg} onClose={() => setActionMsg(null)} />}
       </AnimatePresence>
+
+      {roomUrl && <LiveCallModal roomUrl={roomUrl} onClose={closeCall} />}
     </div>
   )
 }

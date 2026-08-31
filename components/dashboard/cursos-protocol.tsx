@@ -3,6 +3,8 @@
 import { useState } from "react"
 import { MuxVideoPlayer } from "@/components/mux/mux-video-player"
 import { MuxUploader } from "@/components/mux/mux-uploader"
+import { LiveCallModal } from "@/components/daily/live-call-modal"
+import { useLiveCall } from "@/components/daily/use-live-call"
 
 /**
  * GRIP — Cursos (mapa de niveles / protocolo)
@@ -66,6 +68,7 @@ export function CursosProtocol() {
   const [drawer, setDrawer] = useState<{ row: number; col: number } | null>(null)
   // playbackId of the catcher's just-uploaded attempt clip for the open cell
   const [uploadedPlaybackId, setUploadedPlaybackId] = useState<string | null>(null)
+  const { roomUrl, loading: callLoading, startCall, closeCall } = useLiveCall()
 
   const openDrawer = (row: number, col: number) => {
     if (grid[row][col] === "locked") return
@@ -265,14 +268,20 @@ export function CursosProtocol() {
                 >
                   Marcar como aprobado (demo)
                 </button>
-                <button className="rounded-lg border border-[#262b33] px-4 py-2.5 text-sm font-semibold text-[#eef1f5]">
-                  Agendar llamada
+                <button
+                  onClick={() => startCall(`cursos-${SKILLS[drawer.col]}-${SUBLEVELS[drawer.row]}`)}
+                  disabled={callLoading}
+                  className="rounded-lg border border-[#262b33] px-4 py-2.5 text-sm font-semibold text-[#eef1f5] transition-colors hover:border-[#3a424d] disabled:opacity-50"
+                >
+                  {callLoading ? "Creando sala..." : "Agendar llamada en vivo"}
                 </button>
               </div>
             </div>
           </div>
         </div>
       )}
+
+      {roomUrl && <LiveCallModal roomUrl={roomUrl} onClose={closeCall} />}
     </div>
   )
 }

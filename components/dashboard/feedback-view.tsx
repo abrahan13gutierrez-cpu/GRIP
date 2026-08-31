@@ -3,7 +3,9 @@
 import { useState } from "react"
 import { MuxVideoPlayer } from "@/components/mux/mux-video-player"
 import { MuxUploader } from "@/components/mux/mux-uploader"
-import { MessageSquare, CheckCircle2, Clock } from "lucide-react"
+import { LiveCallModal } from "@/components/daily/live-call-modal"
+import { useLiveCall } from "@/components/daily/use-live-call"
+import { MessageSquare, CheckCircle2, Clock, Video } from "lucide-react"
 
 const OSWALD = "font-[family-name:var(--font-oswald)]"
 
@@ -44,6 +46,7 @@ export function FeedbackView() {
   const [items, setItems] = useState<FeedbackItem[]>(INBOX)
   const [active, setActive] = useState<FeedbackItem>(INBOX[0])
   const [retryPlaybackId, setRetryPlaybackId] = useState<string | null>(null)
+  const { roomUrl, loading: callLoading, startCall, closeCall } = useLiveCall()
 
   const select = (item: FeedbackItem) => {
     setActive(item)
@@ -131,9 +134,20 @@ export function FeedbackView() {
                 }}
               />
             )}
+
+            <button
+              onClick={() => startCall(`feedback-${active.id}`)}
+              disabled={callLoading}
+              className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-[#262b33] px-4 py-2.5 text-sm font-semibold text-[#eef1f5] transition-colors hover:border-[#3a424d] disabled:opacity-50"
+            >
+              <Video className="h-4 w-4 text-[#ffb020]" />
+              {callLoading ? "Creando sala..." : "Pedir llamada en vivo con el coach"}
+            </button>
           </div>
         </div>
       </div>
+
+      {roomUrl && <LiveCallModal roomUrl={roomUrl} onClose={closeCall} />}
     </div>
   )
 }
