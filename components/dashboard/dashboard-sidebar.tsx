@@ -31,7 +31,7 @@ export function DashboardSidebar({
     >
       <Link
         href="/dashboard"
-        className="mb-4 flex items-center gap-3 px-3 transition-opacity hover:opacity-80 md:px-4"
+        className="mb-4 flex items-center px-3 transition-opacity hover:opacity-80 md:px-4"
       >
         <Image
           src="/grip-logo.png"
@@ -40,10 +40,6 @@ export function DashboardSidebar({
           height={36}
           className="h-9 w-9 shrink-0 rounded-lg object-cover"
         />
-        <div className="hidden leading-tight md:block">
-          <p className="text-sm font-semibold text-[#e8ebf2]">Catching U</p>
-          <p className="text-[10px] uppercase tracking-[0.2em] text-[#d4af37]">GRIP</p>
-        </div>
       </Link>
 
       {NAV.map((item) => {
