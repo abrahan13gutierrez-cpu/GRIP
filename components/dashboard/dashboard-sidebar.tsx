@@ -31,14 +31,15 @@ export function DashboardSidebar({
     >
       <Link
         href="/dashboard"
-        className="mb-4 flex items-center px-3 transition-opacity hover:opacity-80 md:px-4"
+        className="mb-4 flex items-center justify-center px-2 transition-opacity hover:opacity-80 md:justify-start md:px-4"
       >
         <Image
-          src="/grip-logo.png"
+          src="/grip-emblem.png"
           alt="GRIP"
-          width={36}
-          height={36}
-          className="h-9 w-9 shrink-0 rounded-lg object-cover"
+          width={48}
+          height={48}
+          priority
+          className="h-11 w-11 shrink-0 object-contain"
         />
       </Link>
 
