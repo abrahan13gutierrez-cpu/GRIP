@@ -1,6 +1,8 @@
 "use client"
 
 import { useMemo, useState } from "react"
+import { X, Play } from "lucide-react"
+import { MuxVideoPlayer } from "@/components/mux/mux-video-player"
 
 /**
  * GRIP — Misiones (librería de drills)
@@ -8,6 +10,11 @@ import { useMemo, useState } from "react"
  */
 
 const OSWALD = "font-[family-name:var(--font-oswald)]"
+
+// Drills con video real de Mux. El resto sigue sin video (placeholder).
+const DRILL_PLAYBACK_IDS: Record<string, string> = {
+  "Low Pitch Presentation": "SHtC2y5Xwmb02ubipKjo6qExkCr8lr01ZA7mQm3eNkPE00",
+}
 
 type Drill = { id: number; cat: string; name: string; level: string }
 
@@ -66,6 +73,7 @@ function buildDrills(): Drill[] {
 export function MisionesLibrary() {
   const [drills] = useState<Drill[]>(buildDrills)
   const [activeCat, setActiveCat] = useState<string>("Todas")
+  const [videoDrill, setVideoDrill] = useState<Drill | null>(null)
 
   const filtered = useMemo(
     () => (activeCat === "Todas" ? drills : drills.filter((d) => d.cat === activeCat)),
@@ -95,23 +103,81 @@ export function MisionesLibrary() {
       </div>
 
       <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {filtered.map((d) => (
-          <div
-            key={d.id}
-            className="cursor-pointer rounded-xl border border-[#262b33] bg-[#12151a] p-4 transition hover:border-[#3f7bff]"
-          >
-            <div className="text-[9.5px] font-bold uppercase tracking-wider text-[#b8905a]">{d.cat}</div>
-            <div className={`${OSWALD} mb-2 mt-1.5 text-sm uppercase`}>{d.name}</div>
-            <div className="min-h-[32px] text-xs leading-relaxed text-[#8a919c]">
-              Misión asignable por el coach para atacar debilidades de {d.cat.toLowerCase()}.
+        {filtered.map((d) => {
+          const hasVideo = Boolean(DRILL_PLAYBACK_IDS[d.name])
+          return (
+            <div
+              key={d.id}
+              onClick={hasVideo ? () => setVideoDrill(d) : undefined}
+              role={hasVideo ? "button" : undefined}
+              tabIndex={hasVideo ? 0 : undefined}
+              onKeyDown={
+                hasVideo
+                  ? (e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault()
+                        setVideoDrill(d)
+                      }
+                    }
+                  : undefined
+              }
+              className="cursor-pointer rounded-xl border border-[#262b33] bg-[#12151a] p-4 transition hover:border-[#3f7bff]"
+            >
+              <div className="text-[9.5px] font-bold uppercase tracking-wider text-[#b8905a]">{d.cat}</div>
+              <div className={`${OSWALD} mb-2 mt-1.5 text-sm uppercase`}>{d.name}</div>
+              <div className="min-h-[32px] text-xs leading-relaxed text-[#8a919c]">
+                Misión asignable por el coach para atacar debilidades de {d.cat.toLowerCase()}.
+              </div>
+              <div className="mt-3 flex items-center justify-between font-mono text-[10.5px] text-[#4d545e]">
+                {hasVideo ? (
+                  <span className="flex items-center gap-1 font-semibold text-[#ffb020]">
+                    <Play className="h-3 w-3 fill-current" />
+                    VER VIDEO
+                  </span>
+                ) : (
+                  <span>NIVEL {d.level.toUpperCase()}</span>
+                )}
+                <span>#{String(d.id).padStart(2, "0")}</span>
+              </div>
             </div>
-            <div className="mt-3 flex justify-between font-mono text-[10.5px] text-[#4d545e]">
-              <span>NIVEL {d.level.toUpperCase()}</span>
-              <span>#{String(d.id).padStart(2, "0")}</span>
-            </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
+
+      {videoDrill && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+          onClick={() => setVideoDrill(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-label={videoDrill.name}
+        >
+          <div
+            className="w-full max-w-3xl rounded-2xl border border-[#262b33] bg-[#0d1015] p-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-3 flex items-start justify-between gap-3">
+              <div>
+                <div className="text-[9.5px] font-bold uppercase tracking-wider text-[#b8905a]">
+                  {videoDrill.cat}
+                </div>
+                <h2 className={`${OSWALD} text-base uppercase`}>{videoDrill.name}</h2>
+              </div>
+              <button
+                onClick={() => setVideoDrill(null)}
+                aria-label="Cerrar"
+                className="rounded-lg border border-[#262b33] p-1.5 text-[#8a919c] transition hover:border-[#3f7bff] hover:text-[#eef1f5]"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <MuxVideoPlayer
+              playbackId={DRILL_PLAYBACK_IDS[videoDrill.name]}
+              title={videoDrill.name}
+            />
+          </div>
+        </div>
+      )}
     </div>
   )
 }
