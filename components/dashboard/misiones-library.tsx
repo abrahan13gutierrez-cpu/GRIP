@@ -13,7 +13,7 @@ const OSWALD = "font-[family-name:var(--font-oswald)]"
 
 // Drills con video real de Mux. El resto sigue sin video (placeholder).
 const DRILL_PLAYBACK_IDS: Record<string, string> = {
-  "Low Pitch Presentation": "SHtC2y5Xwmb02ubipKjo6qExkCr8lr01ZA7mQm3eNkPE00",
+  "Low Pitch Presentation": "s8Curbhz4dIc301FUabuAvDUg4vb7Y01uUKacIs2qAKWc",
 }
 
 type Drill = { id: number; cat: string; name: string; level: string }
