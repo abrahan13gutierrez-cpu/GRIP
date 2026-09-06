@@ -1,9 +1,9 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 
-// Public routes reachable without a session. Everything else (including
-// /dashboard and its data APIs) is login-first and requires a session.
-const PUBLIC_PATHS = ['/', '/auth', '/api/auth', '/api/mux', '/api/daily']
+// Public routes reachable without a session. The dashboard is temporarily
+// open (no login) so it can be previewed directly.
+const PUBLIC_PATHS = ['/', '/auth', '/api/auth', '/api/mux', '/api/daily', '/dashboard']
 
 export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
