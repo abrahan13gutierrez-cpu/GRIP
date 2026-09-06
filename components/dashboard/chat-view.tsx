@@ -1,11 +1,10 @@
 "use client"
 
-import { useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
+import useSWR from "swr"
 import { AnimatePresence, motion } from "framer-motion"
 import {
   Hash,
-  Play,
-  Mic,
   Smile,
   Paperclip,
   Send,
@@ -32,14 +31,44 @@ import {
 import { DashboardSidebar } from "@/components/dashboard/dashboard-sidebar"
 import { LiveCallModal } from "@/components/daily/live-call-modal"
 import { useLiveCall } from "@/components/daily/use-live-call"
-import {
-  CHANNEL_GROUPS,
-  MESSAGES,
-  MEMBERS,
-  type Message,
-  type Member,
-  type ViewId,
-} from "@/lib/dashboard/data"
+import { MEMBERS, type Member, type ViewId } from "@/lib/dashboard/data"
+
+const fetcher = (url: string) => fetch(url).then((r) => r.json())
+
+// Fila de canal proveniente de la BD.
+type ChannelRow = {
+  id: string
+  slug: string
+  name: string
+  description: string | null
+  category: string
+  is_broadcast: boolean
+  sort_order: number
+}
+
+// Grupo de canales por categoría, para la barra lateral.
+type ChannelGroupView = { label: string; channels: { id: string; name: string }[] }
+
+// Mensaje real ya listo para renderizar.
+type DisplayMsg = {
+  id: string
+  author: string
+  initials: string
+  time: string
+  content: string
+  mine: boolean
+}
+
+function initialsFrom(name: string) {
+  const parts = name.trim().split(/\s+/)
+  const raw = parts.length > 1 ? parts[0][0] + parts[1][0] : name.slice(0, 2)
+  return raw.toUpperCase()
+}
+
+function formatTime(iso: string) {
+  const d = new Date(iso)
+  return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
+}
 
 const ROLE_STYLES: Record<string, string> = {
   Coach: "bg-[#d4af37]/15 text-[#d4af37]",
@@ -63,13 +92,13 @@ const MESSAGE_ACTIONS: { label: string; icon: typeof CornerUpLeft }[] = [
 ]
 
 function ChannelList({
+  groups,
   active,
   onSelect,
-  onJoinLive,
 }: {
+  groups: ChannelGroupView[]
   active: string
   onSelect: (id: string) => void
-  onJoinLive?: (channelId: string) => void
 }) {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
   const toggle = (label: string) => setCollapsed((prev) => ({ ...prev, [label]: !prev[label] }))
@@ -84,7 +113,10 @@ function ChannelList({
       </div>
 
       <div className="flex flex-col gap-4 p-3">
-        {CHANNEL_GROUPS.map((group) => {
+        {groups.length === 0 && (
+          <p className="px-1 text-xs text-[#6b7591]">Cargando canales…</p>
+        )}
+        {groups.map((group) => {
           const isCollapsed = collapsed[group.label]
           return (
             <div key={group.label}>
@@ -97,7 +129,6 @@ function ChannelList({
                 ) : (
                   <ChevronDown className="h-3 w-3 shrink-0" />
                 )}
-                <span className="shrink-0">{group.emoji}</span>
                 <span className="truncate text-left">{group.label}</span>
               </button>
               {!isCollapsed && (
@@ -105,39 +136,18 @@ function ChannelList({
                   {group.channels.map((ch) => {
                     const isActive = active === ch.id
                     return (
-                      <div key={ch.id} className={ch.live ? "flex flex-col gap-1" : undefined}>
-                        <button
-                          onClick={() => onSelect(ch.id)}
-                          className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition-colors ${
-                            isActive
-                              ? "bg-[#d4af37]/10 text-[#e8ebf2]"
-                              : "text-[#8790a6] hover:bg-white/5 hover:text-[#e8ebf2]"
-                          }`}
-                        >
-                          <span className="shrink-0 text-[15px] leading-none">{ch.emoji}</span>
-                          <span className="flex-1 truncate text-left">{ch.name}</span>
-                          {ch.live && (
-                            <span className="flex items-center gap-1 rounded-full bg-[#ef4444]/15 px-1.5 py-0.5 text-[9px] font-bold uppercase text-[#ff6b6b]">
-                              <span className="h-1.5 w-1.5 rounded-full bg-[#ff6b6b]" />
-                              Live
-                            </span>
-                          )}
-                          {ch.unread ? (
-                            <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-[#d4af37] px-1 text-[10px] font-bold text-[#0a0e1a]">
-                              {ch.unread}
-                            </span>
-                          ) : null}
-                        </button>
-                        {ch.live && (
-                          <button
-                            onClick={() => onJoinLive?.(ch.id)}
-                            className="ml-7 mr-1 flex items-center justify-center gap-1.5 rounded-md bg-[#ef4444] px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-white transition-colors hover:bg-[#dc2626]"
-                          >
-                            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white" />
-                            Unirse
-                          </button>
-                        )}
-                      </div>
+                      <button
+                        key={ch.id}
+                        onClick={() => onSelect(ch.id)}
+                        className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition-colors ${
+                          isActive
+                            ? "bg-[#d4af37]/10 text-[#e8ebf2]"
+                            : "text-[#8790a6] hover:bg-white/5 hover:text-[#e8ebf2]"
+                        }`}
+                      >
+                        <Hash className="h-4 w-4 shrink-0 opacity-70" />
+                        <span className="flex-1 truncate text-left">{ch.name}</span>
+                      </button>
                     )
                   })}
                 </div>
@@ -150,31 +160,14 @@ function ChannelList({
   )
 }
 
-function VoiceBubble({ duration }: { duration: string }) {
-  const bars = [8, 14, 20, 11, 24, 16, 9, 18, 13, 22, 10, 15, 19, 7, 12]
-  return (
-    <div className="flex items-center gap-3 rounded-xl border border-[#1f2740] bg-[#0d1322] px-3 py-2.5">
-      <button className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#d4af37] text-[#0a0e1a]">
-        <Play className="h-4 w-4 fill-current" />
-      </button>
-      <div className="flex h-8 items-center gap-0.5">
-        {bars.map((h, i) => (
-          <span key={i} className="w-0.5 rounded-full bg-[#d4af37]/50" style={{ height: `${h}px` }} />
-        ))}
-      </div>
-      <span className="text-xs tabular-nums text-[#8790a6]">{duration}</span>
-    </div>
-  )
-}
-
 function MessageRow({
   msg,
   index,
   onOpenActions,
 }: {
-  msg: Message
+  msg: DisplayMsg
   index: number
-  onOpenActions: (msg: Message) => void
+  onOpenActions: (msg: DisplayMsg) => void
 }) {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -189,7 +182,7 @@ function MessageRow({
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.05, duration: 0.3, ease: "easeOut" }}
+      transition={{ delay: Math.min(index, 8) * 0.03, duration: 0.25, ease: "easeOut" }}
       onTouchStart={startPress}
       onTouchEnd={cancelPress}
       onTouchMove={cancelPress}
@@ -205,34 +198,14 @@ function MessageRow({
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <span className="text-sm font-semibold text-[#e8ebf2]">{msg.author}</span>
-          <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${ROLE_STYLES[msg.role]}`}>{msg.role}</span>
-          <span className="text-[10px] uppercase tracking-wide text-[#6b7591]">{msg.rank}</span>
+          {msg.mine && (
+            <span className="rounded bg-[#d4af37]/15 px-1.5 py-0.5 text-[10px] font-medium text-[#d4af37]">Tú</span>
+          )}
           <span className="text-xs text-[#6b7591]">{msg.time}</span>
         </div>
         <div className="mt-1 max-w-lg">
-          {msg.type === "voice" ? (
-            <VoiceBubble duration={msg.duration ?? "0:00"} />
-          ) : (
-            <p className="text-pretty text-sm leading-relaxed text-[#c3cad9]">{msg.content}</p>
-          )}
+          <p className="text-pretty text-sm leading-relaxed text-[#c3cad9]">{msg.content}</p>
         </div>
-        {msg.reactions && msg.reactions.length > 0 && (
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {msg.reactions.map((r) => (
-              <button
-                key={r.emoji}
-                className={`flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs transition-colors ${
-                  r.reacted
-                    ? "border-[#d4af37]/50 bg-[#d4af37]/10 text-[#d4af37]"
-                    : "border-[#1f2740] bg-[#0d1322] text-[#a3abbf] hover:border-[#2a3a5c]"
-                }`}
-              >
-                <span>{r.emoji}</span>
-                <span className="tabular-nums">{r.count}</span>
-              </button>
-            ))}
-          </div>
-        )}
       </div>
 
       {/* Options button (mouse/desktop affordance) */}
@@ -249,21 +222,39 @@ function MessageRow({
 
 function MessagePane({
   channel,
-  unreadTotal,
+  messages,
+  loading,
+  sending,
+  onSend,
   onOpenNav,
   onOpenSearch,
   onOpenMembers,
   onOpenActions,
 }: {
   channel: string
-  unreadTotal: number
+  messages: DisplayMsg[]
+  loading: boolean
+  sending: boolean
+  onSend: (content: string) => void
   onOpenNav: () => void
   onOpenSearch: () => void
   onOpenMembers: () => void
-  onOpenActions: (msg: Message) => void
+  onOpenActions: (msg: DisplayMsg) => void
 }) {
   const [text, setText] = useState("")
-  const days = ["Yesterday", "Today"] as const
+  const scrollRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    const el = scrollRef.current
+    if (el) el.scrollTop = el.scrollHeight
+  }, [messages])
+
+  const submit = () => {
+    const value = text.trim()
+    if (!value || sending) return
+    onSend(value)
+    setText("")
+  }
 
   return (
     <div className="flex h-full min-w-0 flex-1 flex-col bg-[#0a0e1a]">
@@ -274,11 +265,6 @@ function MessagePane({
           className="relative -ml-1 flex h-8 w-8 items-center justify-center rounded-lg text-[#8790a6] transition-colors hover:bg-white/5 hover:text-[#e8ebf2] sm:hidden"
         >
           <Menu className="h-5 w-5" />
-          {unreadTotal > 0 && (
-            <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#ef4444] px-1 text-[9px] font-bold text-white">
-              {unreadTotal}
-            </span>
-          )}
         </button>
         <Hash className="h-5 w-5 shrink-0 text-[#d4af37]" />
         <span className="truncate font-semibold text-[#e8ebf2]">{channel}</span>
@@ -300,33 +286,29 @@ function MessagePane({
         </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto py-3">
-        {days.map((day) => {
-          const dayMsgs = MESSAGES.filter((m) => m.day === day)
-          if (dayMsgs.length === 0) return null
-          return (
-            <div key={day}>
-              <div className="my-2 flex items-center gap-3 px-4">
-                <div className="h-px flex-1 bg-[#1f2740]" />
-                <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#6b7591]">{day}</span>
-                <div className="h-px flex-1 bg-[#1f2740]" />
-              </div>
-              {dayMsgs.map((m, i) => (
-                <MessageRow key={m.id} msg={m} index={i} onOpenActions={onOpenActions} />
-              ))}
-            </div>
-          )
-        })}
+      <div ref={scrollRef} className="flex-1 overflow-y-auto py-3">
+        {loading && messages.length === 0 ? (
+          <p className="px-4 py-8 text-center text-sm text-[#6b7591]">Cargando mensajes…</p>
+        ) : messages.length === 0 ? (
+          <p className="px-4 py-8 text-center text-sm text-[#6b7591]">
+            Aún no hay mensajes. Sé el primero en escribir.
+          </p>
+        ) : (
+          messages.map((m, i) => <MessageRow key={m.id} msg={m} index={i} onOpenActions={onOpenActions} />)
+        )}
       </div>
 
       <div className="border-t border-[#1f2740] p-3">
         <div className="flex items-center gap-2 rounded-xl border border-[#1f2740] bg-[#111726] px-3 py-2">
-          <button aria-label="Record voice note" className="text-[#8790a6] transition-colors hover:text-[#d4af37]">
-            <Mic className="h-5 w-5" />
-          </button>
           <input
             value={text}
             onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.nativeEvent.isComposing && e.keyCode !== 229) {
+                e.preventDefault()
+                submit()
+              }
+            }}
             placeholder={`Message #${channel}`}
             className="min-w-0 flex-1 bg-transparent text-sm text-[#e8ebf2] outline-none placeholder:text-[#6b7591]"
           />
@@ -337,8 +319,10 @@ function MessagePane({
             <Paperclip className="h-5 w-5" />
           </button>
           <button
+            onClick={submit}
+            disabled={sending || !text.trim()}
             aria-label="Send message"
-            className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#d4af37] text-[#0a0e1a] transition-colors hover:bg-[#e6c455]"
+            className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#d4af37] text-[#0a0e1a] transition-colors hover:bg-[#e6c455] disabled:opacity-40"
           >
             <Send className="h-4 w-4" />
           </button>
@@ -427,19 +411,19 @@ function MembersByRole() {
 
 /** Left slide-in drawer: icon nav + channel list (mobile only). */
 function LeftDrawer({
-  channel,
+  groups,
+  activeId,
   activeView,
   onSelectChannel,
   onNavigate,
   onClose,
-  onJoinLive,
 }: {
-  channel: string
+  groups: ChannelGroupView[]
+  activeId: string
   activeView?: ViewId
   onSelectChannel: (id: string) => void
   onNavigate?: (id: ViewId) => void
   onClose: () => void
-  onJoinLive?: (channelId: string) => void
 }) {
   return (
     <div className="absolute inset-0 z-40 sm:hidden">
@@ -465,7 +449,7 @@ function LeftDrawer({
           }}
         />
         <div className="w-[232px]">
-          <ChannelList active={channel} onSelect={onSelectChannel} onJoinLive={onJoinLive} />
+          <ChannelList groups={groups} active={activeId} onSelect={onSelectChannel} />
         </div>
       </motion.div>
     </div>
@@ -562,16 +546,23 @@ function RightDrawer({ channel, onClose }: { channel: string; onClose: () => voi
 }
 
 /** Message search modal (mobile). */
-function SearchModal({ channel, onClose }: { channel: string; onClose: () => void }) {
+function SearchModal({
+  channel,
+  messages,
+  onClose,
+}: {
+  channel: string
+  messages: DisplayMsg[]
+  onClose: () => void
+}) {
   const [query, setQuery] = useState("")
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase()
-    const base = MESSAGES.filter((m) => m.type === "text")
-    if (!q) return base
-    return base.filter((m) => m.content.toLowerCase().includes(q) || m.author.toLowerCase().includes(q))
-  }, [query])
+    if (!q) return messages
+    return messages.filter((m) => m.content.toLowerCase().includes(q) || m.author.toLowerCase().includes(q))
+  }, [query, messages])
 
   return (
     <div className="absolute inset-0 z-50 flex flex-col bg-[#0a0e1a] sm:hidden">
@@ -652,9 +643,7 @@ function SearchModal({ channel, onClose }: { channel: string; onClose: () => voi
                   {m.content}
                 </p>
                 <div className="mt-2 flex items-center justify-between">
-                  <span className="text-xs text-[#6b7591]">
-                    {m.day} at {m.time}
-                  </span>
+                  <span className="text-xs text-[#6b7591]">{m.time}</span>
                   {isLong && (
                     <button
                       onClick={() => setExpanded((p) => ({ ...p, [m.id]: !p[m.id] }))}
@@ -674,7 +663,7 @@ function SearchModal({ channel, onClose }: { channel: string; onClose: () => voi
 }
 
 /** Long-press / options action sheet with quick reactions. */
-function MessageActionSheet({ msg, onClose }: { msg: Message; onClose: () => void }) {
+function MessageActionSheet({ msg, onClose }: { msg: DisplayMsg; onClose: () => void }) {
   return (
     <div className="absolute inset-0 z-50 flex flex-col justify-end">
       <motion.div
@@ -745,40 +734,92 @@ export function ChatView({
   activeView?: ViewId
   onNavigate?: (id: ViewId) => void
 }) {
-  const [channel, setChannel] = useState("grip-chat")
+  const [channelId, setChannelId] = useState<string>("")
   const [leftDrawer, setLeftDrawer] = useState(false)
   const [rightDrawer, setRightDrawer] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
-  const [actionMsg, setActionMsg] = useState<Message | null>(null)
-  const { roomUrl, startCall, closeCall } = useLiveCall()
+  const [actionMsg, setActionMsg] = useState<DisplayMsg | null>(null)
+  const [sending, setSending] = useState(false)
+  const { roomUrl, closeCall } = useLiveCall()
 
-  const unreadTotal = useMemo(
-    () => CHANNEL_GROUPS.reduce((sum, g) => sum + g.channels.reduce((s, c) => s + (c.unread ?? 0), 0), 0),
-    [],
+  const { data: channelsData } = useSWR<{ channels: ChannelRow[] }>("/api/chat/channels", fetcher)
+  const channels = useMemo(() => channelsData?.channels ?? [], [channelsData])
+
+  // Selecciona el primer canal automáticamente una vez cargados.
+  useEffect(() => {
+    if (!channelId && channels.length > 0) setChannelId(channels[0].id)
+  }, [channels, channelId])
+
+  const activeChannel = channels.find((c) => c.id === channelId)
+  const channelName = activeChannel?.name ?? ""
+
+  // Agrupa canales reales por categoría para la barra lateral.
+  const groups = useMemo<ChannelGroupView[]>(() => {
+    const map = new Map<string, { id: string; name: string }[]>()
+    for (const c of channels) {
+      const list = map.get(c.category) ?? []
+      list.push({ id: c.id, name: c.name })
+      map.set(c.category, list)
+    }
+    return Array.from(map.entries()).map(([label, chs]) => ({ label, channels: chs }))
+  }, [channels])
+
+  // Mensajes reales del canal activo, con refresco periódico ligero.
+  const { data: msgData, isLoading, mutate: mutateMessages } = useSWR<{
+    messages: (DisplayMsg & { created_at: string })[]
+  }>(channelId ? `/api/chat/messages?channelId=${channelId}` : null, fetcher, {
+    refreshInterval: 5000,
+  })
+
+  const messages: DisplayMsg[] = useMemo(
+    () =>
+      (msgData?.messages ?? []).map((m: any) => ({
+        id: m.id,
+        author: m.username ?? m.author ?? "member",
+        initials: initialsFrom(m.username ?? m.author ?? "member"),
+        time: formatTime(m.created_at),
+        content: m.content,
+        mine: Boolean(m.mine),
+      })),
+    [msgData],
   )
 
-  const selectChannel = (id: string) => {
-    setChannel(id)
-    setLeftDrawer(false)
+  async function sendMessage(content: string) {
+    if (!channelId) return
+    setSending(true)
+    try {
+      await fetch("/api/chat/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ channelId, content }),
+      })
+      await mutateMessages()
+    } catch (err) {
+      console.log("[v0] sendMessage error:", err)
+    } finally {
+      setSending(false)
+    }
   }
 
-  const joinLive = (channelId: string) => {
+  const selectChannel = (id: string) => {
+    setChannelId(id)
     setLeftDrawer(false)
-    // La transmisión en vivo comparte una sala estable por canal (topic = channelId).
-    startCall(channelId, 120)
   }
 
   return (
     <div className="relative flex h-full overflow-hidden border-0 sm:rounded-2xl sm:border sm:border-[#1f2740]">
       {/* Channel list — tablet/desktop only */}
       <div className="hidden w-56 shrink-0 sm:block">
-        <ChannelList active={channel} onSelect={selectChannel} onJoinLive={joinLive} />
+        <ChannelList groups={groups} active={channelId} onSelect={selectChannel} />
       </div>
 
       {/* Message pane — always full-screen on mobile */}
       <MessagePane
-        channel={channel}
-        unreadTotal={unreadTotal}
+        channel={channelName}
+        messages={messages}
+        loading={isLoading}
+        sending={sending}
+        onSend={sendMessage}
         onOpenNav={() => setLeftDrawer(true)}
         onOpenSearch={() => setSearchOpen(true)}
         onOpenMembers={() => setRightDrawer(true)}
@@ -793,16 +834,18 @@ export function ChatView({
         {leftDrawer && (
           <LeftDrawer
             key="left"
-            channel={channel}
+            groups={groups}
+            activeId={channelId}
             activeView={activeView}
             onSelectChannel={selectChannel}
             onNavigate={onNavigate}
             onClose={() => setLeftDrawer(false)}
-            onJoinLive={joinLive}
           />
         )}
-        {rightDrawer && <RightDrawer key="right" channel={channel} onClose={() => setRightDrawer(false)} />}
-        {searchOpen && <SearchModal key="search" channel={channel} onClose={() => setSearchOpen(false)} />}
+        {rightDrawer && <RightDrawer key="right" channel={channelName} onClose={() => setRightDrawer(false)} />}
+        {searchOpen && (
+          <SearchModal key="search" channel={channelName} messages={messages} onClose={() => setSearchOpen(false)} />
+        )}
         {actionMsg && <MessageActionSheet key="actions" msg={actionMsg} onClose={() => setActionMsg(null)} />}
       </AnimatePresence>
 

@@ -1,6 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
+import useSWR from "swr"
 import Image from "next/image"
 import {
   Rocket,
@@ -26,6 +27,8 @@ import { MisionesLibrary } from "@/components/dashboard/misiones-library"
  */
 
 const OSWALD = "font-[family-name:var(--font-oswald)]"
+
+const fetcher = (url: string) => fetch(url).then((r) => r.json())
 
 type Special = "protocol" | "misiones" | null
 
@@ -118,10 +121,43 @@ export function CoursesView() {
   const [tab, setTab] = useState<TabId>("categorias")
   const [open, setOpen] = useState<Special>(null)
 
+  const { data: progressData, mutate: mutateProgress } = useSWR<{ progress: Record<string, number> }>(
+    "/api/progress/courses",
+    fetcher,
+  )
+  const saved = progressData?.progress ?? {}
+
+  // El progreso persistido (BD) tiene prioridad sobre el valor estático de la tarjeta.
+  const cards = useMemo(
+    () => CARDS.map((c) => ({ ...c, progress: saved[c.id] ?? c.progress })),
+    [saved],
+  )
+
+  async function saveProgress(courseId: string, progress: number) {
+    await mutateProgress(
+      async () => {
+        await fetch("/api/progress/courses", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ courseId, progress }),
+        })
+        return { progress: { ...saved, [courseId]: progress } }
+      },
+      { optimisticData: { progress: { ...saved, [courseId]: progress } }, revalidate: true },
+    )
+  }
+
+  function startCourse(card: CourseCard) {
+    if (card.special) setOpen(card.special)
+    // Registrar/persistir que el curso quedó en progreso (si aún no está avanzado).
+    const current = saved[card.id] ?? card.progress
+    if (current < 100 && current < 5) void saveProgress(card.id, Math.max(current, 5))
+  }
+
   const visible = useMemo(() => {
-    if (tab === "en-curso") return CARDS.filter((c) => c.progress > 0 && c.progress < 100)
-    return CARDS
-  }, [tab])
+    if (tab === "en-curso") return cards.filter((c) => c.progress > 0 && c.progress < 100)
+    return cards
+  }, [tab, cards])
 
   // Vista de detalle: monta el MISMO componente usado en el sidebar (sin duplicar).
   if (open) {
@@ -189,7 +225,7 @@ export function CoursesView() {
       ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {visible.map((c) => (
-            <CourseTile key={c.id} card={c} onStart={() => c.special && setOpen(c.special)} />
+            <CourseTile key={c.id} card={c} onStart={() => startCourse(c)} />
           ))}
         </div>
       )}
