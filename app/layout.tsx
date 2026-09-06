@@ -1,0 +1,48 @@
+import { Analytics } from '@vercel/analytics/next'
+import type { Metadata, Viewport } from 'next'
+import { Geist, Geist_Mono, Oswald } from 'next/font/google'
+import './globals.css'
+import { SuppressResizeObserverError } from '@/components/suppress-resize-observer-error'
+
+const geistSans = Geist({ subsets: ['latin'], variable: '--font-geist-sans' })
+const geistMono = Geist_Mono({
+  subsets: ['latin'],
+  variable: '--font-geist-mono',
+})
+const oswald = Oswald({ subsets: ['latin'], variable: '--font-oswald' })
+
+export const metadata: Metadata = {
+  title: 'GRIP — Catching University',
+  description:
+    'Own the game. GRIP Catching University — daily live coaching, campuses, and the catcher community. Prepare. Lead. Execute. Repeat.',
+  generator: 'v0.app',
+  manifest: '/manifest.json',
+}
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  colorScheme: 'dark',
+  themeColor: '#000000',
+}
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode
+}>) {
+  return (
+    <html
+      lang="en"
+      className={`dark bg-background ${geistSans.variable} ${geistMono.variable} ${oswald.variable}`}
+    >
+      <body className="font-sans antialiased">
+        <SuppressResizeObserverError />
+        {children}
+        {process.env.NODE_ENV === 'production' && <Analytics />}
+      </body>
+    </html>
+  )
+}
