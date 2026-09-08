@@ -17,6 +17,9 @@ const fetcher = (url: string) => fetch(url).then((r) => r.json())
 // Fallback local de playback IDs; los reales vienen de la tabla `videos` (Mux).
 const DRILL_PLAYBACK_IDS: Record<string, string> = {
   "Low Pitch Presentation": "s8Curbhz4dIc301FUabuAvDUg4vb7Y01uUKacIs2qAKWc",
+  "Blocking Aqua Bag": "OQt74d3zkAjiOLSCbH02p9GMlqJxmbkgubuPCIq2F016Q",
+  "Blocking w/ Stick": "tWn7oY1sv9Rx5mNO8L8akwW88PAyZrbS4o6YYpYNpb4",
+  "Blocking Regular Glove": "fLmpuYqK00HOBceDpHWgRtzB00L00ynb02JQgXvcoJk7xFM",
 }
 
 type Drill = { id: number; cat: string; name: string; level: string }
@@ -28,9 +31,7 @@ const DRILL_NAMES: Record<string, string[]> = {
     "Stance Under Fatigue", "Weighted Vest Base",
   ],
   Blocking: [
-    "Knee Slide Reps", "Chest-to-Ball Wall Drill", "Angle Block Series", "Short-Hop Machine",
-    "Rapid Fire Blocks", "Block & Recover", "Two-Ball Block Combo", "Dirt Ball Reaction",
-    "Block to Throw Transition", "Glove-Down Discipline", "Lateral Shuffle Block",
+    "Blocking Aqua Bag", "Blocking w/ Stick", "Blocking Regular Glove",
   ],
   Transfers: [
     "Quick Hands Partner Drill", "One-Knee Transfer", "Transfer Under Pressure",
@@ -66,8 +67,10 @@ function buildDrills(): Drill[] {
       list.push({ id: id++, cat, name, level: LEVELS[(catIdx + i) % LEVELS.length] })
     })
   })
+  // Relleno de placeholders para las demás categorías (Blocking queda intacto: solo sus 3 drills reales).
+  const fillerCats = CATS.filter((c) => c !== "Blocking")
   while (list.length < 62) {
-    const cat = CATS[list.length % CATS.length]
+    const cat = fillerCats[list.length % fillerCats.length]
     list.push({ id: id++, cat, name: `${cat} Combo Drill ${list.length}`, level: "Rookie" })
   }
   return list
@@ -118,6 +121,63 @@ export function MisionesLibrary() {
     [drills, activeCat],
   )
 
+  const blockingDrills = useMemo(() => filtered.filter((d) => d.cat === "Blocking"), [filtered])
+  const otherDrills = useMemo(() => filtered.filter((d) => d.cat !== "Blocking"), [filtered])
+
+  function renderCard(d: Drill) {
+    const hasVideo = Boolean(playbackIds[d.name])
+    const status = progress[d.id]
+    return (
+      <div
+        key={d.id}
+        onClick={hasVideo ? () => openDrill(d) : undefined}
+        role={hasVideo ? "button" : undefined}
+        tabIndex={hasVideo ? 0 : undefined}
+        onKeyDown={
+          hasVideo
+            ? (e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault()
+                  openDrill(d)
+                }
+              }
+            : undefined
+        }
+        className={`cursor-pointer rounded-xl border bg-[#12151a] p-4 transition hover:border-[#3f7bff] ${
+          status === "completed" ? "border-[#2fbf71]/50" : "border-[#262b33]"
+        }`}
+      >
+        <div className="flex items-center justify-between">
+          <div className="text-[9.5px] font-bold uppercase tracking-wider text-[#b8905a]">{d.cat}</div>
+          {status === "completed" ? (
+            <span className="flex items-center gap-1 rounded-full bg-[#2fbf71]/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-[#2fbf71]">
+              <Check className="h-2.5 w-2.5" /> Hecho
+            </span>
+          ) : status === "in_progress" ? (
+            <span className="rounded-full bg-[#ffb020]/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-[#ffb020]">
+              En curso
+            </span>
+          ) : null}
+        </div>
+        <div className={`${OSWALD} mb-2 mt-1.5 text-sm uppercase`}>{d.name}</div>
+        <div className="min-h-[32px] text-xs leading-relaxed text-[#8a919c]">
+          Misión asignable por el coach para atacar debilidades de {d.cat.toLowerCase()}.
+        </div>
+        <div className="mt-3 flex items-center justify-between font-mono text-[10.5px] text-[#4d545e]">
+          {hasVideo ? (
+            <span className="flex items-center gap-1 font-semibold text-[#ffb020]">
+              <Play className="h-3 w-3 fill-current" />
+              VER VIDEO
+            </span>
+          ) : (
+            <span>NIVEL {d.level.toUpperCase()}</span>
+          )}
+          <span>#{String(d.id).padStart(2, "0")}</span>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="text-[#eef1f5]">
       <h1 className={`${OSWALD} mb-1 text-lg uppercase tracking-wide`}>Librería de Misiones</h1>
@@ -140,61 +200,24 @@ export function MisionesLibrary() {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {filtered.map((d) => {
-          const hasVideo = Boolean(playbackIds[d.name])
-          const status = progress[d.id]
-          return (
-            <div
-              key={d.id}
-              onClick={hasVideo ? () => openDrill(d) : undefined}
-              role={hasVideo ? "button" : undefined}
-              tabIndex={hasVideo ? 0 : undefined}
-              onKeyDown={
-                hasVideo
-                  ? (e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault()
-                        openDrill(d)
-                      }
-                    }
-                  : undefined
-              }
-              className={`cursor-pointer rounded-xl border bg-[#12151a] p-4 transition hover:border-[#3f7bff] ${
-                status === "completed" ? "border-[#2fbf71]/50" : "border-[#262b33]"
-              }`}
-            >
-              <div className="flex items-center justify-between">
-                <div className="text-[9.5px] font-bold uppercase tracking-wider text-[#b8905a]">{d.cat}</div>
-                {status === "completed" ? (
-                  <span className="flex items-center gap-1 rounded-full bg-[#2fbf71]/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-[#2fbf71]">
-                    <Check className="h-2.5 w-2.5" /> Hecho
-                  </span>
-                ) : status === "in_progress" ? (
-                  <span className="rounded-full bg-[#ffb020]/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-[#ffb020]">
-                    En curso
-                  </span>
-                ) : null}
-              </div>
-              <div className={`${OSWALD} mb-2 mt-1.5 text-sm uppercase`}>{d.name}</div>
-              <div className="min-h-[32px] text-xs leading-relaxed text-[#8a919c]">
-                Misión asignable por el coach para atacar debilidades de {d.cat.toLowerCase()}.
-              </div>
-              <div className="mt-3 flex items-center justify-between font-mono text-[10.5px] text-[#4d545e]">
-                {hasVideo ? (
-                  <span className="flex items-center gap-1 font-semibold text-[#ffb020]">
-                    <Play className="h-3 w-3 fill-current" />
-                    VER VIDEO
-                  </span>
-                ) : (
-                  <span>NIVEL {d.level.toUpperCase()}</span>
-                )}
-                <span>#{String(d.id).padStart(2, "0")}</span>
-              </div>
-            </div>
-          )
-        })}
-      </div>
+      {blockingDrills.length > 0 && (
+        <section className="mb-7">
+          <div className="mb-3 flex items-center gap-3">
+            <h2 className={`${OSWALD} text-sm uppercase tracking-wide text-[#ffb020]`}>Blocking Progression</h2>
+            <span className="h-px flex-1 bg-[#262b33]" />
+            <span className="font-mono text-[10px] text-[#4d545e]">{blockingDrills.length} DRILLS</span>
+          </div>
+          <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {blockingDrills.map(renderCard)}
+          </div>
+        </section>
+      )}
+
+      {otherDrills.length > 0 && (
+        <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {otherDrills.map(renderCard)}
+        </div>
+      )}
 
       {videoDrill && (
         <div
