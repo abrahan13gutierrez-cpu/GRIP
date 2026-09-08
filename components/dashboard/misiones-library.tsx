@@ -16,10 +16,12 @@ const fetcher = (url: string) => fetch(url).then((r) => r.json())
 
 // Fallback local de playback IDs; los reales vienen de la tabla `videos` (Mux).
 const DRILL_PLAYBACK_IDS: Record<string, string> = {
-  "Low Pitch Presentation": "s8Curbhz4dIc301FUabuAvDUg4vb7Y01uUKacIs2qAKWc",
-  "Blocking Aqua Bag": "OQt74d3zkAjiOLSCbH02p9GMlqJxmbkgubuPCIq2F016Q",
-  "Blocking w/ Stick": "tWn7oY1sv9Rx5mNO8L8akwW88PAyZrbS4o6YYpYNpb4",
-  "Blocking Regular Glove": "fLmpuYqK00HOBceDpHWgRtzB00L00ynb02JQgXvcoJk7xFM",
+  "Resistance Band - Back": "s8Curbhz4dIc301FUabuAvDUg4vb7Y01uUKacIs2qAKWc",
+  "Assistance Resistance - Front": "AhXTBI17FXLfIsa7z59HkYhxejZLUfHjTC02WPFshVPI",
+  "CB Boz - Wrist Band": "5nex2D3t4Sofw4Ayrqcj1Bgelufxj7Z7yQ6rTPYiDnc",
+  "Blocking Aqua Bag": "hDf4L01SaB1w4y4EjcgzTD6BjiNA4Ns9c7bWeYxwlccU",
+  "Blocking w/ Stick": "MZ2ANSYqKOJ934Mth8502TgxFH78DYa44rHC00XCicb3A",
+  "Blocking Regular Glove": "f00R3uJoRIK02bPXn3qmGMKHTpqMUxKjcVIx0200dRq8pMQ",
 }
 
 type Drill = { id: number; cat: string; name: string; level: string }
@@ -34,7 +36,7 @@ const DRILL_NAMES: Record<string, string[]> = {
   Blocking: ["Blocking Aqua Bag", "Blocking w/ Stick", "Blocking Regular Glove"],
   Transfers: [],
   Throwing: [],
-  Receiving: ["Low Pitch Presentation"],
+  Receiving: ["Resistance Band - Back", "Assistance Resistance - Front", "CB Boz - Wrist Band"],
   Mentalidad: [],
 }
 
