@@ -11,6 +11,7 @@ import {
   Blocks,
   Brain,
   Handshake,
+  Library,
   Lock,
   ArrowLeft,
   Bookmark,
@@ -72,7 +73,7 @@ const CARDS: CourseCard[] = [
     title: "Bóveda del conocimiento",
     description: "Todas las habilidades adicionales, mini cursos y recursos que necesitarás durante el camino.",
     progress: 0,
-    image: "/boveda-icon.png",
+    icon: Library,
     special: "misiones",
   },
   {
