@@ -19,6 +19,28 @@ import {
 } from "lucide-react"
 import { CursosProtocol } from "@/components/dashboard/cursos-protocol"
 import { MisionesLibrary } from "@/components/dashboard/misiones-library"
+import { LessonPlayer, type Course } from "@/components/dashboard/lesson-player"
+
+// Placeholder de Mux hasta subir el video real de cada lección (reemplazar por su playbackId).
+const PLACEHOLDER_PLAYBACK = "hDf4L01SaB1w4y4EjcgzTD6BjiNA4Ns9c7bWeYxwlccU"
+
+// Contenido por curso. Cualquier tarjeta con entrada aquí abre el reproductor de lección.
+const COURSE_CONTENT: Record<string, Course> = {
+  start: {
+    id: "start",
+    title: "Empieza aquí: ¿Qué es GRIP?",
+    modules: [
+      {
+        id: "m1",
+        title: "Bienvenida",
+        lessons: [
+          { id: "start-l1", title: "¿Qué es GRIP?", playbackId: PLACEHOLDER_PLAYBACK, completed: true },
+          { id: "start-l2", title: "Cómo usar la plataforma", playbackId: PLACEHOLDER_PLAYBACK, completed: true },
+        ],
+      },
+    ],
+  },
+}
 
 /**
  * GRIP — Cursos (grid de carpetas/cursos)
@@ -121,6 +143,7 @@ function isUnlocked(c: CourseCard) {
 export function CoursesView() {
   const [tab, setTab] = useState<TabId>("categorias")
   const [open, setOpen] = useState<Special>(null)
+  const [lesson, setLesson] = useState<Course | null>(null)
 
   const { data: progressData, mutate: mutateProgress } = useSWR<{ progress: Record<string, number> }>(
     "/api/progress/courses",
@@ -150,6 +173,7 @@ export function CoursesView() {
 
   function startCourse(card: CourseCard) {
     if (card.special) setOpen(card.special)
+    else if (COURSE_CONTENT[card.id]) setLesson(COURSE_CONTENT[card.id])
     // Registrar/persistir que el curso quedó en progreso (si aún no está avanzado).
     const current = saved[card.id] ?? card.progress
     if (current < 100 && current < 5) void saveProgress(card.id, Math.max(current, 5))
@@ -159,6 +183,11 @@ export function CoursesView() {
     if (tab === "en-curso") return cards.filter((c) => c.progress > 0 && c.progress < 100)
     return cards
   }, [tab, cards])
+
+  // Vista de lección: reproductor + índice de lecciones (reutilizable por cualquier curso).
+  if (lesson) {
+    return <LessonPlayer course={lesson} onBack={() => setLesson(null)} />
+  }
 
   // Vista de detalle: monta el MISMO componente usado en el sidebar (sin duplicar).
   if (open) {
