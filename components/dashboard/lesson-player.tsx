@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { ArrowLeft, ArrowRight, Bookmark, Check, ChevronRight, Link2, Search } from "lucide-react"
+import { ArrowLeft, ArrowRight, Bookmark, Check, ChevronDown, ChevronRight, Link2, Search } from "lucide-react"
 import { MuxVideoPlayer } from "@/components/mux/mux-video-player"
 
 /**
@@ -48,6 +48,16 @@ export function LessonPlayer({ course, onBack }: { course: Course; onBack: () =>
   )
   const [query, setQuery] = useState("")
   const [bookmarked, setBookmarked] = useState(false)
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
+
+  function toggleModule(id: string) {
+    setCollapsed((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
 
   const activeIdx = Math.max(
     0,
@@ -191,15 +201,37 @@ export function LessonPlayer({ course, onBack }: { course: Course; onBack: () =>
 
             {/* Módulos y lecciones */}
             {course.modules.map((m, mi) => {
-              const lessons = m.lessons.filter((l) => l.title.toLowerCase().includes(query.toLowerCase()))
-              if (lessons.length === 0) return null
+              const q = query.trim().toLowerCase()
+              const moduleMatches = m.title.toLowerCase().includes(q)
+              // Con búsqueda: si coincide el módulo se muestran todas sus lecciones; si no, solo las que matchean.
+              const lessons = q && !moduleMatches ? m.lessons.filter((l) => l.title.toLowerCase().includes(q)) : m.lessons
+              // Oculta el módulo solo si hay búsqueda activa y no coincide ni el título ni ninguna lección.
+              if (q && !moduleMatches && lessons.length === 0) return null
+              const isCollapsed = collapsed.has(m.id) && !q
               return (
                 <div key={m.id} className="mb-4">
-                  <h2 className={`mb-2 text-xs uppercase tracking-wide text-[#ffb020] ${OSWALD}`}>
-                    Módulo {mi + 1} - {m.title}
-                  </h2>
-                  <ul className="flex flex-col gap-1">
-                    {lessons.map((l) => {
+                  <button
+                    onClick={() => toggleModule(m.id)}
+                    className={`mb-2 flex w-full items-center gap-2 text-xs uppercase tracking-wide text-[#ffb020] ${OSWALD}`}
+                    aria-expanded={!isCollapsed}
+                  >
+                    <ChevronDown
+                      className={`h-3.5 w-3.5 shrink-0 transition-transform ${isCollapsed ? "-rotate-90" : ""}`}
+                    />
+                    <span className="flex-1 text-left">
+                      Módulo {mi + 1} — {m.title}
+                    </span>
+                    <span className="text-[10px] font-normal normal-case text-[#4d545e]">
+                      {m.lessons.length || "0"}
+                    </span>
+                  </button>
+                  {isCollapsed ? null : lessons.length === 0 ? (
+                    <p className="rounded-lg border border-dashed border-[#262b33] bg-[#12151a] px-3 py-2.5 text-xs text-[#4d545e]">
+                      Próximamente
+                    </p>
+                  ) : (
+                    <ul className="flex flex-col gap-1">
+                      {lessons.map((l) => {
                       const isActive = l.id === activeId
                       const isDone = completed.has(l.id)
                       return (
@@ -233,7 +265,8 @@ export function LessonPlayer({ course, onBack }: { course: Course; onBack: () =>
                         </li>
                       )
                     })}
-                  </ul>
+                    </ul>
+                  )}
                 </div>
               )
             })}

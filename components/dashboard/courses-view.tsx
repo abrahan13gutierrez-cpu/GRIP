@@ -18,7 +18,6 @@ import {
   type LucideIcon,
 } from "lucide-react"
 import { CursosProtocol } from "@/components/dashboard/cursos-protocol"
-import { MisionesLibrary } from "@/components/dashboard/misiones-library"
 import { LessonPlayer, type Course } from "@/components/dashboard/lesson-player"
 
 // Placeholder de Mux hasta subir el video real de cada lección (reemplazar por su playbackId).
@@ -40,6 +39,48 @@ const COURSE_CONTENT: Record<string, Course> = {
       },
     ],
   },
+  // Bóveda del conocimiento: un módulo por área/skill (orden fijo). Los módulos sin
+  // video real quedan vacíos y muestran "Próximamente" en el reproductor de lección.
+  boveda: {
+    id: "boveda",
+    title: "Bóveda del conocimiento",
+    modules: [
+      { id: "stances", title: "Stances", lessons: [] },
+      {
+        id: "blocking",
+        title: "Blocking",
+        lessons: [
+          { id: "blk-1", title: "Blocking Aqua Bag", playbackId: "hDf4L01SaB1w4y4EjcgzTD6BjiNA4Ns9c7bWeYxwlccU" },
+          { id: "blk-2", title: "Blocking Stick", playbackId: "MZ2ANSYqKOJ934Mth8502TgxFH78DYa44rHC00XCicb3A" },
+          {
+            id: "blk-3",
+            title: "Blocking Regular Glove",
+            playbackId: "f00R3uJoRIK02bPXn3qmGMKHTpqMUxKjcVIx0200dRq8pMQ",
+          },
+        ],
+      },
+      { id: "transfers", title: "Transfers", lessons: [] },
+      { id: "throwing", title: "Throwing", lessons: [] },
+      {
+        id: "receiving",
+        title: "Receiving",
+        lessons: [
+          {
+            id: "rcv-1",
+            title: "Resistance Band - Back",
+            playbackId: "s8Curbhz4dIc301FUabuAvDUg4vb7Y01uUKacIs2qAKWc",
+          },
+          {
+            id: "rcv-2",
+            title: "Assistance Resistance - Front",
+            playbackId: "AhXTBI17FXLfIsa7z59HkYhxejZLUfHjTC02WPFshVPI",
+          },
+          { id: "rcv-3", title: "CB Boz - Wrist Band", playbackId: "5nex2D3t4Sofw4Ayrqcj1Bgelufxj7Z7yQ6rTPYiDnc" },
+        ],
+      },
+      { id: "mentalidad", title: "Mentalidad", lessons: [] },
+    ],
+  },
 }
 
 /**
@@ -53,7 +94,7 @@ const OSWALD = "font-[family-name:var(--font-oswald)]"
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json())
 
-type Special = "protocol" | "misiones" | null
+type Special = "protocol" | null
 
 type CourseCard = {
   id: string
@@ -96,7 +137,6 @@ const CARDS: CourseCard[] = [
     description: "Todas las habilidades adicionales, mini cursos y recursos que necesitarás durante el camino.",
     progress: 0,
     icon: Library,
-    special: "misiones",
   },
   {
     id: "daily-puzzle",
@@ -135,9 +175,9 @@ const TABS = [
 
 type TabId = (typeof TABS)[number]["id"]
 
-// Una tarjeta está disponible si tiene progreso o es una tarjeta especial (recurso siempre accesible).
+// Una tarjeta está disponible si tiene progreso, es especial, o tiene contenido de lección definido.
 function isUnlocked(c: CourseCard) {
-  return c.progress > 0 || c.special != null
+  return c.progress > 0 || c.special != null || COURSE_CONTENT[c.id] != null
 }
 
 export function CoursesView() {
@@ -202,11 +242,11 @@ export function CoursesView() {
             Cursos
           </button>
           <span className={`text-sm font-semibold uppercase tracking-wide text-[#8a919c] ${OSWALD}`}>
-            {open === "protocol" ? "GRIP Level Up" : "Bóveda del conocimiento"}
+            GRIP Level Up
           </span>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto">
-          {open === "protocol" ? <CursosProtocol /> : <MisionesLibrary />}
+          <CursosProtocol />
         </div>
       </div>
     )
