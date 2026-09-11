@@ -5,14 +5,13 @@ import { MuxVideoPlayer } from "@/components/mux/mux-video-player"
 import { MuxUploader } from "@/components/mux/mux-uploader"
 import { LiveCallModal } from "@/components/daily/live-call-modal"
 import { useLiveCall } from "@/components/daily/use-live-call"
+import { OSWALD, playerHeading, playerBtnPrimary, playerBtnSecondary } from "@/components/dashboard/player-ui"
 
 /**
  * GRIP — Cursos (mapa de niveles / protocolo)
  * Paleta: fondo #0a0c0f, paneles #12151a / #171b21, línea #262b33,
  * ámbar #ffb020 (progreso/activo), verde #2fbf71 (aprobado), azul #3f7bff (en revisión)
  */
-
-const OSWALD = "font-[family-name:var(--font-oswald)]"
 
 // Mock coach-lesson playback id (Mux public test asset) until DB wiring lands.
 const MOCK_LESSON_PLAYBACK_ID = "qxb01i6T202018GFS02vp9RIe01icTcDCjVzQpmaB00CUisJ4"
@@ -97,7 +96,7 @@ export function CursosProtocol() {
 
   return (
     <div className="h-full text-[#eef1f5]">
-      <h1 className={`${OSWALD} mb-4 text-lg uppercase tracking-wide`}>Rookie</h1>
+      <h1 className={`mb-4 ${playerHeading}`}>Rookie</h1>
 
       <div className="flex h-[calc(100%-2.5rem)] flex-col gap-4 lg:grid lg:grid-cols-[230px_1fr] lg:gap-6">
         {/* RIEL DE RANGOS */}
@@ -261,17 +260,14 @@ export function CursosProtocol() {
                 )}
               </div>
 
-              <div className="mt-5 flex gap-2.5">
-                <button
-                  onClick={approveCurrent}
-                  className="rounded-lg bg-[#ffb020] px-4 py-2.5 text-sm font-semibold text-[#0a0c0f]"
-                >
-                  Marcar como aprobado (demo)
+              <div className="mt-5 flex flex-wrap gap-2.5">
+                <button onClick={approveCurrent} className={playerBtnPrimary}>
+                  Marcar como aprobado
                 </button>
                 <button
                   onClick={() => startCall(`cursos-${SKILLS[drawer.col]}-${SUBLEVELS[drawer.row]}`)}
                   disabled={callLoading}
-                  className="rounded-lg border border-[#262b33] px-4 py-2.5 text-sm font-semibold text-[#eef1f5] transition-colors hover:border-[#3a424d] disabled:opacity-50"
+                  className={playerBtnSecondary}
                 >
                   {callLoading ? "Creando sala..." : "Agendar llamada en vivo"}
                 </button>

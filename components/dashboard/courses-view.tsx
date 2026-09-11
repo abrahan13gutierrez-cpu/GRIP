@@ -14,6 +14,7 @@ import {
   Library,
   Lock,
   ArrowLeft,
+  ChevronRight,
   Bookmark,
   type LucideIcon,
 } from "lucide-react"
@@ -233,17 +234,19 @@ export function CoursesView() {
   if (open) {
     return (
       <div className="flex h-full flex-col bg-[#0a0c0f]">
-        <div className="flex items-center gap-3 border-b border-[#262b33] px-4 py-3">
+        <div className="flex items-center gap-2 border-b border-[#262b33] px-4 py-3">
           <button
             onClick={() => setOpen(null)}
-            className="flex items-center gap-1.5 rounded-lg border border-[#262b33] px-3 py-1.5 text-sm font-medium text-[#eef1f5] transition-colors hover:border-[#3a424d]"
+            aria-label="Volver a Cursos"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[#262b33] text-[#eef1f5] transition-colors hover:border-[#3a424d]"
           >
             <ArrowLeft className="h-4 w-4" />
-            Cursos
           </button>
-          <span className={`text-sm font-semibold uppercase tracking-wide text-[#8a919c] ${OSWALD}`}>
-            GRIP Level Up
-          </span>
+          <nav className="flex min-w-0 items-center gap-1.5 text-sm">
+            <span className="truncate text-[#8a919c]">Cursos</span>
+            <ChevronRight className="h-3.5 w-3.5 shrink-0 text-[#4d545e]" />
+            <span className="truncate font-semibold text-[#eef1f5]">GRIP Level Up</span>
+          </nav>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto">
           <CursosProtocol />

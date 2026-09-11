@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react"
 import { ArrowLeft, ArrowRight, Bookmark, Check, ChevronDown, ChevronRight, Link2, Search } from "lucide-react"
 import { MuxVideoPlayer } from "@/components/mux/mux-video-player"
+import { OSWALD, playerBtnPrimary } from "@/components/dashboard/player-ui"
 
 /**
  * GRIP — Reproductor de lección reutilizable.
@@ -10,8 +11,6 @@ import { MuxVideoPlayer } from "@/components/mux/mux-video-player"
  * y el índice de lecciones a la derecha. Reutilizable por cualquier tarjeta de Cursos.
  * Paleta: fondo #0a0c0f, paneles #12151a / #171b21, línea #262b33, ámbar #ffb020.
  */
-
-const OSWALD = "font-[family-name:var(--font-oswald)]"
 
 export type Lesson = {
   id: string
@@ -152,15 +151,7 @@ export function LessonPlayer({ course, onBack }: { course: Course; onBack: () =>
               </div>
               <h1 className={`truncate text-lg text-[#eef1f5] ${OSWALD}`}>{active?.lesson.title}</h1>
             </div>
-            <button
-              onClick={goNext}
-              disabled={!hasNext}
-              className={`flex shrink-0 items-center gap-2 rounded-lg px-5 py-3 text-sm font-bold uppercase tracking-wide transition-colors ${
-                hasNext
-                  ? "bg-[#ffb020] text-[#0a0c0f] hover:bg-[#ffbe45]"
-                  : "cursor-not-allowed border border-[#262b33] text-[#4d545e]"
-              }`}
-            >
+            <button onClick={goNext} disabled={!hasNext} className={playerBtnPrimary}>
               Siguiente lección
               <ArrowRight className="h-4 w-4" />
             </button>
