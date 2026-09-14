@@ -13,9 +13,9 @@ export async function createClient() {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
-      // SameSite=None; Secure so the session cookie survives the v0 preview's
-      // cross-site iframe (see client.ts for the full rationale).
-      cookieOptions: { sameSite: 'none', secure: true },
+      // SameSite=None; Secure; Partitioned so the session cookie survives the
+      // v0 preview's cross-site iframe (see client.ts for the full rationale).
+      cookieOptions: { sameSite: 'none', secure: true, partitioned: true },
       cookies: {
         getAll() {
           return cookieStore.getAll()
