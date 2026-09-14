@@ -10,7 +10,7 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from("channels")
-    .select("id, slug, name, description, category, is_broadcast, sort_order")
+    .select("id, slug, name, description, category, emoji, is_broadcast, sort_order")
     .order("sort_order", { ascending: true })
 
   if (error) {

@@ -42,12 +42,27 @@ type ChannelRow = {
   name: string
   description: string | null
   category: string
+  emoji: string | null
   is_broadcast: boolean
   sort_order: number
 }
 
 // Grupo de canales por categoría, para la barra lateral.
-type ChannelGroupView = { label: string; channels: { id: string; name: string }[] }
+type ChannelGroupView = {
+  label: string
+  emoji: string
+  channels: { id: string; name: string; emoji: string }[]
+}
+
+// Emoji de cada categoría (presentación). La categoría no tiene tabla propia,
+// así que el emoji del encabezado vive aquí, mapeado por su etiqueta.
+const CATEGORY_EMOJI: Record<string, string> = {
+  INFORMATION: "📁",
+  "CALL ARCHIVE": "⚡",
+  LEADERBOARD: "📊",
+  CHATS: "💬",
+  "DAILY LESSONS": "📅",
+}
 
 // Mensaje real ya listo para renderizar.
 type DisplayMsg = {
@@ -129,6 +144,11 @@ function ChannelList({
                 ) : (
                   <ChevronDown className="h-3 w-3 shrink-0" />
                 )}
+                {group.emoji && (
+                  <span className="shrink-0 text-xs leading-none" aria-hidden="true">
+                    {group.emoji}
+                  </span>
+                )}
                 <span className="truncate text-left">{group.label}</span>
               </button>
               {!isCollapsed && (
@@ -145,7 +165,13 @@ function ChannelList({
                             : "text-[#8790a6] hover:bg-white/5 hover:text-[#e8ebf2]"
                         }`}
                       >
-                        <Hash className="h-4 w-4 shrink-0 opacity-70" />
+                        {ch.emoji ? (
+                          <span className="w-4 shrink-0 text-center text-sm leading-none" aria-hidden="true">
+                            {ch.emoji}
+                          </span>
+                        ) : (
+                          <Hash className="h-4 w-4 shrink-0 opacity-70" />
+                        )}
                         <span className="flex-1 truncate text-left">{ch.name}</span>
                       </button>
                     )
@@ -755,13 +781,17 @@ export function ChatView({
 
   // Agrupa canales reales por categoría para la barra lateral.
   const groups = useMemo<ChannelGroupView[]>(() => {
-    const map = new Map<string, { id: string; name: string }[]>()
+    const map = new Map<string, { id: string; name: string; emoji: string }[]>()
     for (const c of channels) {
       const list = map.get(c.category) ?? []
-      list.push({ id: c.id, name: c.name })
+      list.push({ id: c.id, name: c.name, emoji: c.emoji ?? "" })
       map.set(c.category, list)
     }
-    return Array.from(map.entries()).map(([label, chs]) => ({ label, channels: chs }))
+    return Array.from(map.entries()).map(([label, chs]) => ({
+      label,
+      emoji: CATEGORY_EMOJI[label] ?? "",
+      channels: chs,
+    }))
   }, [channels])
 
   // Mensajes reales del canal activo, con refresco periódico ligero.
