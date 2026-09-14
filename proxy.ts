@@ -12,7 +12,9 @@ export async function proxy(request: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
-      cookieOptions: { secure: process.env.NODE_ENV === 'production' },
+      // SameSite=None; Secure so the session cookie survives the v0 preview's
+      // cross-site iframe (see lib/supabase/client.ts for the full rationale).
+      cookieOptions: { sameSite: 'none', secure: true },
       cookies: {
         getAll() {
           return request.cookies.getAll()

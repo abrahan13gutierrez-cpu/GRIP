@@ -5,8 +5,10 @@ export function createClient() {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
-      // Secure cookies in production; not in dev, so localhost still works.
-      cookieOptions: { secure: process.env.NODE_ENV === 'production' },
+      // SameSite=None; Secure so the session cookie is sent inside the v0
+      // preview's cross-site iframe. Without this, login succeeds but the
+      // session cookie is dropped and the middleware bounces back to /login.
+      cookieOptions: { sameSite: 'none', secure: true },
     },
   )
 }
