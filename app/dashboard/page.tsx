@@ -7,6 +7,7 @@ import { CoursesView } from "@/components/dashboard/courses-view"
 import { MisionesLibrary } from "@/components/dashboard/misiones-library"
 import { FeedbackView } from "@/components/dashboard/feedback-view"
 import { ChatView } from "@/components/dashboard/chat-view"
+import { ProfileView } from "@/components/dashboard/profile-view"
 import { PlaceholderView } from "@/components/dashboard/placeholder-view"
 import type { ViewId } from "@/lib/dashboard/data"
 
@@ -47,9 +48,16 @@ export default function DashboardPage() {
               </div>
             )}
             {view === "chat" && <ChatView activeView={view} onNavigate={setView} />}
-            {view !== "courses" && view !== "misiones" && view !== "feedback" && view !== "chat" && (
-              <PlaceholderView view={view} />
+            {view === "profile" && (
+              <div className="h-full overflow-y-auto">
+                <ProfileView />
+              </div>
             )}
+            {view !== "courses" &&
+              view !== "misiones" &&
+              view !== "feedback" &&
+              view !== "chat" &&
+              view !== "profile" && <PlaceholderView view={view} />}
           </motion.div>
         </AnimatePresence>
       </main>
