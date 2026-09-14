@@ -1,13 +1,13 @@
-import { AuthShell } from '@/components/auth/auth-shell'
+import { AuthScreen } from '@/components/auth/auth-screen'
+import { AuthCard } from '@/components/auth/auth-card'
 import { ForgotPasswordForm } from '@/components/auth/forgot-password-form'
 
 export default function ForgotPasswordPage() {
   return (
-    <AuthShell
-      heading="RECUPERAR ACCESO"
-      subheading="Te enviaremos un enlace para restablecer tu contraseña."
-    >
-      <ForgotPasswordForm />
-    </AuthShell>
+    <AuthScreen>
+      <AuthCard title="Recuperar acceso" backHref="/auth/login">
+        <ForgotPasswordForm />
+      </AuthCard>
+    </AuthScreen>
   )
 }

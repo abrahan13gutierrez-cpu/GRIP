@@ -1,12 +1,13 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, ArrowRight } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { GripLogo } from '@/components/grip-logo'
 import { MatrixRain } from '@/components/auth/matrix-rain'
+import { AuthCard, AMBER_BUTTON } from '@/components/auth/auth-card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -31,13 +32,13 @@ export function GripLogin() {
   const [phase, setPhase] = useState<Phase>('loading')
   const [visible, setVisible] = useState(false)
 
-  // Pick one phrase per mount.
-  const phrase = useMemo(
-    () => PHRASES[Math.floor(Math.random() * PHRASES.length)],
-    [],
-  )
+  // Pick the phrase only on the client so SSR and hydration stay in sync
+  // (a random pick during render would mismatch the server-rendered HTML).
+  const [phrase, setPhrase] = useState(PHRASES[0])
 
   useEffect(() => {
+    setPhrase(PHRASES[Math.floor(Math.random() * PHRASES.length)])
+
     // Fade the loader in immediately, then hand off to the form.
     const fadeIn = setTimeout(() => setVisible(true), 30)
     const toForm = setTimeout(() => setVisible(false), 2600)
@@ -204,23 +205,21 @@ function LoginCard({ visible }: { visible: boolean }) {
         visible ? 'translate-y-0 opacity-100' : 'translate-y-3 opacity-0',
       )}
     >
-      <div className="mb-6 flex flex-col items-center text-center">
-        <GripLogo size={56} showWordmark={false} className="mb-4" />
-      </div>
-
-      <div className="rounded-xl border border-border bg-card/85 p-6 shadow-2xl backdrop-blur-md sm:p-8">
-        <Link
-          href="/"
-          className="mb-5 inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Volver
-        </Link>
-
-        <h1 className="mb-6 font-mono text-2xl font-bold tracking-[0.12em] text-foreground text-balance">
-          Inicia sesión en GRIP
-        </h1>
-
+      <AuthCard
+        title="Inicia sesión en GRIP"
+        backHref="/"
+        footer={
+          <>
+            {'¿No tienes cuenta? '}
+            <Link
+              href="/auth/sign-up"
+              className="text-foreground underline-offset-4 hover:underline"
+            >
+              Regístrate
+            </Link>
+          </>
+        }
+      >
         {/* Method toggle */}
         <div className="mb-6 grid grid-cols-2 gap-1 rounded-lg border border-border bg-background/60 p-1">
           {(['email', 'phone'] as Method[]).map((m) => (
@@ -274,7 +273,7 @@ function LoginCard({ visible }: { visible: boolean }) {
             <Button
               type="submit"
               disabled={loading}
-              className="mt-1 h-11 w-full bg-[oklch(0.8_0.14_85)] text-[oklch(0.2_0.02_85)] hover:bg-[oklch(0.75_0.14_85)]"
+              className={cn('mt-1 h-11 w-full', AMBER_BUTTON)}
             >
               {loading ? 'Iniciando sesión...' : 'Iniciar sesión'}
               {!loading && <ArrowRight className="ml-1 h-4 w-4" />}
@@ -320,7 +319,7 @@ function LoginCard({ visible }: { visible: boolean }) {
             <Button
               type="submit"
               disabled={loading}
-              className="mt-1 h-11 w-full bg-[oklch(0.8_0.14_85)] text-[oklch(0.2_0.02_85)] hover:bg-[oklch(0.75_0.14_85)]"
+              className={cn('mt-1 h-11 w-full', AMBER_BUTTON)}
             >
               {loading ? 'Enviando código...' : 'Enviar código'}
               {!loading && <ArrowRight className="ml-1 h-4 w-4" />}
@@ -350,9 +349,7 @@ function LoginCard({ visible }: { visible: boolean }) {
                 required
                 className="h-11 tracking-[0.4em]"
               />
-              <p className="text-xs text-muted-foreground">
-                Enviado a {phone}
-              </p>
+              <p className="text-xs text-muted-foreground">Enviado a {phone}</p>
             </div>
 
             {notice && !error && (
@@ -363,7 +360,7 @@ function LoginCard({ visible }: { visible: boolean }) {
             <Button
               type="submit"
               disabled={loading}
-              className="mt-1 h-11 w-full bg-[oklch(0.8_0.14_85)] text-[oklch(0.2_0.02_85)] hover:bg-[oklch(0.75_0.14_85)]"
+              className={cn('mt-1 h-11 w-full', AMBER_BUTTON)}
             >
               {loading ? 'Verificando...' : 'Verificar y entrar'}
               {!loading && <ArrowRight className="ml-1 h-4 w-4" />}
@@ -391,17 +388,7 @@ function LoginCard({ visible }: { visible: boolean }) {
             </div>
           </form>
         )}
-      </div>
-
-      <p className="mt-6 text-center text-sm text-muted-foreground">
-        {'¿No tienes cuenta? '}
-        <Link
-          href="/auth/sign-up"
-          className="text-foreground underline-offset-4 hover:underline"
-        >
-          Regístrate
-        </Link>
-      </p>
+      </AuthCard>
     </div>
   )
 }
