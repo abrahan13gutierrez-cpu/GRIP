@@ -152,8 +152,10 @@ function LoginCard({ visible }: { visible: boolean }) {
       }
       return
     }
-    router.push('/dashboard')
-    router.refresh()
+    // Hard navigation (not router.push): a client-side transition can stall
+    // inside the v0 preview's cross-site iframe, leaving the user on the login
+    // screen even after a successful sign-in. A full load is iframe-proof.
+    window.location.assign('/dashboard')
   }
 
   async function handleSendOtp(e: React.FormEvent) {
@@ -188,8 +190,7 @@ function LoginCard({ visible }: { visible: boolean }) {
       setError('Código incorrecto o expirado.')
       return
     }
-    router.push('/dashboard')
-    router.refresh()
+    window.location.assign('/dashboard')
   }
 
   function switchMethod(next: Method) {

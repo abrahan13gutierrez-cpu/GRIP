@@ -82,8 +82,9 @@ export function SignUpForm() {
       return
     }
 
-    router.push('/dashboard')
-    router.refresh()
+    // Hard navigation (not router.push): a client-side transition can stall
+    // inside the v0 preview's cross-site iframe. A full load is iframe-proof.
+    window.location.assign('/dashboard')
   }
 
   if (notice) {

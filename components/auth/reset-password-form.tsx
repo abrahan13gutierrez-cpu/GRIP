@@ -58,8 +58,7 @@ export function ResetPasswordForm() {
 
     setDone(true)
     setTimeout(() => {
-      router.push('/dashboard')
-      router.refresh()
+      window.location.assign('/dashboard')
     }, 1200)
   }
 
