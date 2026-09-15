@@ -5,7 +5,6 @@ import useSWR from "swr"
 import Image from "next/image"
 import {
   Rocket,
-  Zap,
   Radio,
   Puzzle,
   Blocks,
@@ -13,12 +12,9 @@ import {
   Handshake,
   Library,
   Lock,
-  ArrowLeft,
-  ChevronRight,
   Bookmark,
   type LucideIcon,
 } from "lucide-react"
-import { CursosProtocol } from "@/components/dashboard/cursos-protocol"
 import { LessonPlayer, type Course } from "@/components/dashboard/lesson-player"
 
 // Placeholder de Mux hasta subir el video real de cada lección (reemplazar por su playbackId).
@@ -95,8 +91,6 @@ const OSWALD = "font-[family-name:var(--font-oswald)]"
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json())
 
-type Special = "protocol" | null
-
 type CourseCard = {
   id: string
   title: string
@@ -104,7 +98,6 @@ type CourseCard = {
   progress: number
   icon?: LucideIcon
   image?: string
-  special?: Special
   accent?: boolean
 }
 
@@ -115,15 +108,6 @@ const CARDS: CourseCard[] = [
     description: "Descubre cómo ganarás éxito.",
     progress: 100,
     icon: Rocket,
-  },
-  {
-    id: "level-up",
-    title: "GRIP LEVEL UP",
-    description: "Ahora que ya conoces lo básico, es hora de ganar habilidad.",
-    progress: 4,
-    icon: Zap,
-    special: "protocol",
-    accent: true,
   },
   {
     id: "recordings",
@@ -176,14 +160,13 @@ const TABS = [
 
 type TabId = (typeof TABS)[number]["id"]
 
-// Una tarjeta está disponible si tiene progreso, es especial, o tiene contenido de lección definido.
+// Una tarjeta está disponible si tiene progreso o tiene contenido de lección definido.
 function isUnlocked(c: CourseCard) {
-  return c.progress > 0 || c.special != null || COURSE_CONTENT[c.id] != null
+  return c.progress > 0 || COURSE_CONTENT[c.id] != null
 }
 
 export function CoursesView() {
   const [tab, setTab] = useState<TabId>("categorias")
-  const [open, setOpen] = useState<Special>(null)
   const [lesson, setLesson] = useState<Course | null>(null)
 
   const { data: progressData, mutate: mutateProgress } = useSWR<{ progress: Record<string, number> }>(
@@ -213,8 +196,7 @@ export function CoursesView() {
   }
 
   function startCourse(card: CourseCard) {
-    if (card.special) setOpen(card.special)
-    else if (COURSE_CONTENT[card.id]) setLesson(COURSE_CONTENT[card.id])
+    if (COURSE_CONTENT[card.id]) setLesson(COURSE_CONTENT[card.id])
     // Registrar/persistir que el curso quedó en progreso (si aún no está avanzado).
     const current = saved[card.id] ?? card.progress
     if (current < 100 && current < 5) void saveProgress(card.id, Math.max(current, 5))
@@ -228,31 +210,6 @@ export function CoursesView() {
   // Vista de lección: reproductor + índice de lecciones (reutilizable por cualquier curso).
   if (lesson) {
     return <LessonPlayer course={lesson} onBack={() => setLesson(null)} />
-  }
-
-  // Vista de detalle: monta el MISMO componente usado en el sidebar (sin duplicar).
-  if (open) {
-    return (
-      <div className="flex h-full flex-col bg-[#0a0c0f]">
-        <div className="flex items-center gap-2 border-b border-[#262b33] px-4 py-3">
-          <button
-            onClick={() => setOpen(null)}
-            aria-label="Volver a Cursos"
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[#262b33] text-[#eef1f5] transition-colors hover:border-[#3a424d]"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </button>
-          <nav className="flex min-w-0 items-center gap-1.5 text-sm">
-            <span className="truncate text-[#8a919c]">Cursos</span>
-            <ChevronRight className="h-3.5 w-3.5 shrink-0 text-[#4d545e]" />
-            <span className="truncate font-semibold text-[#eef1f5]">GRIP Level Up</span>
-          </nav>
-        </div>
-        <div className="min-h-0 flex-1 overflow-y-auto">
-          <CursosProtocol />
-        </div>
-      </div>
-    )
   }
 
   return (
