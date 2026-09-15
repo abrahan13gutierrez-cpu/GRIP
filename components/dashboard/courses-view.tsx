@@ -5,19 +5,80 @@ import useSWR from "swr"
 import Image from "next/image"
 import {
   Rocket,
-  Zap,
   Radio,
   Puzzle,
   Blocks,
   Brain,
   Handshake,
+  Library,
   Lock,
-  ArrowLeft,
   Bookmark,
   type LucideIcon,
 } from "lucide-react"
-import { CursosProtocol } from "@/components/dashboard/cursos-protocol"
-import { MisionesLibrary } from "@/components/dashboard/misiones-library"
+import { LessonPlayer, type Course } from "@/components/dashboard/lesson-player"
+
+// Placeholder de Mux hasta subir el video real de cada lección (reemplazar por su playbackId).
+const PLACEHOLDER_PLAYBACK = "hDf4L01SaB1w4y4EjcgzTD6BjiNA4Ns9c7bWeYxwlccU"
+
+// Contenido por curso. Cualquier tarjeta con entrada aquí abre el reproductor de lección.
+const COURSE_CONTENT: Record<string, Course> = {
+  start: {
+    id: "start",
+    title: "Empieza aquí: ¿Qué es GRIP?",
+    modules: [
+      {
+        id: "m1",
+        title: "Bienvenida",
+        lessons: [
+          { id: "start-l1", title: "¿Qué es GRIP?", playbackId: PLACEHOLDER_PLAYBACK, completed: true },
+          { id: "start-l2", title: "Cómo usar la plataforma", playbackId: PLACEHOLDER_PLAYBACK, completed: true },
+        ],
+      },
+    ],
+  },
+  // Bóveda del conocimiento: un módulo por área/skill (orden fijo). Los módulos sin
+  // video real quedan vacíos y muestran "Próximamente" en el reproductor de lección.
+  boveda: {
+    id: "boveda",
+    title: "Bóveda del conocimiento",
+    modules: [
+      { id: "stances", title: "Stances", lessons: [] },
+      {
+        id: "blocking",
+        title: "Blocking",
+        lessons: [
+          { id: "blk-1", title: "Blocking Aqua Bag", playbackId: "hDf4L01SaB1w4y4EjcgzTD6BjiNA4Ns9c7bWeYxwlccU" },
+          { id: "blk-2", title: "Blocking Stick", playbackId: "MZ2ANSYqKOJ934Mth8502TgxFH78DYa44rHC00XCicb3A" },
+          {
+            id: "blk-3",
+            title: "Blocking Regular Glove",
+            playbackId: "f00R3uJoRIK02bPXn3qmGMKHTpqMUxKjcVIx0200dRq8pMQ",
+          },
+        ],
+      },
+      { id: "transfers", title: "Transfers", lessons: [] },
+      { id: "throwing", title: "Throwing", lessons: [] },
+      {
+        id: "receiving",
+        title: "Receiving",
+        lessons: [
+          {
+            id: "rcv-1",
+            title: "Resistance Band - Back",
+            playbackId: "s8Curbhz4dIc301FUabuAvDUg4vb7Y01uUKacIs2qAKWc",
+          },
+          {
+            id: "rcv-2",
+            title: "Assistance Resistance - Front",
+            playbackId: "AhXTBI17FXLfIsa7z59HkYhxejZLUfHjTC02WPFshVPI",
+          },
+          { id: "rcv-3", title: "CB Boz - Wrist Band", playbackId: "5nex2D3t4Sofw4Ayrqcj1Bgelufxj7Z7yQ6rTPYiDnc" },
+        ],
+      },
+      { id: "mentalidad", title: "Mentalidad", lessons: [] },
+    ],
+  },
+}
 
 /**
  * GRIP — Cursos (grid de carpetas/cursos)
@@ -30,8 +91,6 @@ const OSWALD = "font-[family-name:var(--font-oswald)]"
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json())
 
-type Special = "protocol" | "misiones" | null
-
 type CourseCard = {
   id: string
   title: string
@@ -39,7 +98,6 @@ type CourseCard = {
   progress: number
   icon?: LucideIcon
   image?: string
-  special?: Special
   accent?: boolean
 }
 
@@ -50,15 +108,6 @@ const CARDS: CourseCard[] = [
     description: "Descubre cómo ganarás éxito.",
     progress: 100,
     icon: Rocket,
-  },
-  {
-    id: "level-up",
-    title: "GRIP LEVEL UP",
-    description: "Ahora que ya conoces lo básico, es hora de ganar habilidad.",
-    progress: 4,
-    icon: Zap,
-    special: "protocol",
-    accent: true,
   },
   {
     id: "recordings",
@@ -72,8 +121,7 @@ const CARDS: CourseCard[] = [
     title: "Bóveda del conocimiento",
     description: "Todas las habilidades adicionales, mini cursos y recursos que necesitarás durante el camino.",
     progress: 0,
-    image: "/boveda-icon.png",
-    special: "misiones",
+    icon: Library,
   },
   {
     id: "daily-puzzle",
@@ -112,14 +160,14 @@ const TABS = [
 
 type TabId = (typeof TABS)[number]["id"]
 
-// Una tarjeta está disponible si tiene progreso o es una tarjeta especial (recurso siempre accesible).
+// Una tarjeta está disponible si tiene progreso o tiene contenido de lección definido.
 function isUnlocked(c: CourseCard) {
-  return c.progress > 0 || c.special != null
+  return c.progress > 0 || COURSE_CONTENT[c.id] != null
 }
 
 export function CoursesView() {
   const [tab, setTab] = useState<TabId>("categorias")
-  const [open, setOpen] = useState<Special>(null)
+  const [lesson, setLesson] = useState<Course | null>(null)
 
   const { data: progressData, mutate: mutateProgress } = useSWR<{ progress: Record<string, number> }>(
     "/api/progress/courses",
@@ -148,7 +196,7 @@ export function CoursesView() {
   }
 
   function startCourse(card: CourseCard) {
-    if (card.special) setOpen(card.special)
+    if (COURSE_CONTENT[card.id]) setLesson(COURSE_CONTENT[card.id])
     // Registrar/persistir que el curso quedó en progreso (si aún no está avanzado).
     const current = saved[card.id] ?? card.progress
     if (current < 100 && current < 5) void saveProgress(card.id, Math.max(current, 5))
@@ -159,27 +207,9 @@ export function CoursesView() {
     return cards
   }, [tab, cards])
 
-  // Vista de detalle: monta el MISMO componente usado en el sidebar (sin duplicar).
-  if (open) {
-    return (
-      <div className="flex h-full flex-col bg-[#0a0c0f]">
-        <div className="flex items-center gap-3 border-b border-[#262b33] px-4 py-3">
-          <button
-            onClick={() => setOpen(null)}
-            className="flex items-center gap-1.5 rounded-lg border border-[#262b33] px-3 py-1.5 text-sm font-medium text-[#eef1f5] transition-colors hover:border-[#3a424d]"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Cursos
-          </button>
-          <span className={`text-sm font-semibold uppercase tracking-wide text-[#8a919c] ${OSWALD}`}>
-            {open === "protocol" ? "GRIP Level Up" : "Bóveda del conocimiento"}
-          </span>
-        </div>
-        <div className="min-h-0 flex-1 overflow-y-auto">
-          {open === "protocol" ? <CursosProtocol /> : <MisionesLibrary />}
-        </div>
-      </div>
-    )
+  // Vista de lección: reproductor + índice de lecciones (reutilizable por cualquier curso).
+  if (lesson) {
+    return <LessonPlayer course={lesson} onBack={() => setLesson(null)} />
   }
 
   return (

@@ -1,10 +1,12 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 
-// Public routes reachable without a session. The dashboard is temporarily
-// open (no login) so it can be previewed directly.
-const PUBLIC_PATHS = ['/', '/auth', '/api/auth', '/api/mux', '/api/daily', '/dashboard']
-
+// The middleware only refreshes the Supabase session cookie; it does NOT gate
+// routes. Server-side login-first gating breaks inside the v0 preview's
+// cross-site iframe: the browser will not reliably send the session cookie to
+// the server there, so a server-side session check always fails and traps the
+// user in a redirect loop back to /auth/login. Access control is handled in
+// the app (client-side) instead, so the platform is reachable in the preview.
 export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
 
@@ -12,7 +14,10 @@ export async function proxy(request: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
-      cookieOptions: { secure: process.env.NODE_ENV === 'production' },
+      // SameSite=None; Secure; Partitioned so the session cookie survives the
+      // v0 preview's cross-site iframe (see lib/supabase/client.ts for the
+      // full rationale).
+      cookieOptions: { sameSite: 'none', secure: true, partitioned: true },
       cookies: {
         getAll() {
           return request.cookies.getAll()
@@ -30,28 +35,8 @@ export async function proxy(request: NextRequest) {
     },
   )
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  const { pathname } = request.nextUrl
-  const isPublic = PUBLIC_PATHS.some(
-    (p) => pathname === p || pathname.startsWith(`${p}/`),
-  )
-
-  // Login-first: no session and not on a public route -> send to login.
-  if (!user && !isPublic) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/auth/login'
-    return NextResponse.redirect(url)
-  }
-
-  // Already authenticated and hitting an auth page -> send into the campus.
-  if (user && pathname.startsWith('/auth') && pathname !== '/auth/callback') {
-    const url = request.nextUrl.clone()
-    url.pathname = '/'
-    return NextResponse.redirect(url)
-  }
+  // Refresh the session token if needed. Never redirect based on the result.
+  await supabase.auth.getUser()
 
   return supabaseResponse
 }
