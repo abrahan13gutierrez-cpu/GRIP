@@ -17,7 +17,6 @@ import {
   Pin,
   X,
   RefreshCw,
-  SlidersHorizontal,
   CornerUpLeft,
   CornerUpRight,
   CheckSquare,
@@ -27,11 +26,17 @@ import {
   Bell,
   EyeOff,
   Flag,
+  LogOut,
+  User,
+  Settings,
+  Trash2,
+  Loader2,
 } from "lucide-react"
 import { DashboardSidebar } from "@/components/dashboard/dashboard-sidebar"
 import { LiveCallModal } from "@/components/daily/live-call-modal"
 import { useLiveCall } from "@/components/daily/use-live-call"
-import { MEMBERS, type Member, type ViewId } from "@/lib/dashboard/data"
+import { createClient } from "@/lib/supabase/client"
+import type { ViewId } from "@/lib/dashboard/data"
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json())
 
@@ -47,15 +52,12 @@ type ChannelRow = {
   sort_order: number
 }
 
-// Grupo de canales por categoría, para la barra lateral.
 type ChannelGroupView = {
   label: string
   emoji: string
   channels: { id: string; name: string; emoji: string }[]
 }
 
-// Emoji de cada categoría (presentación). La categoría no tiene tabla propia,
-// así que el emoji del encabezado vive aquí, mapeado por su etiqueta.
 const CATEGORY_EMOJI: Record<string, string> = {
   INFORMATION: "📁",
   "CALL ARCHIVE": "⚡",
@@ -64,14 +66,66 @@ const CATEGORY_EMOJI: Record<string, string> = {
   "DAILY LESSONS": "📅",
 }
 
-// Mensaje real ya listo para renderizar.
+type Reaction = { emoji: string; count: number; mine: boolean }
+
+// Mensaje listo para renderizar.
 type DisplayMsg = {
   id: string
   author: string
   initials: string
+  avatarUrl: string | null
   time: string
   content: string
   mine: boolean
+  reactions: Reaction[]
+  replyAuthor: string | null
+  replySnippet: string | null
+}
+
+type ApiMember = {
+  id: string
+  name: string
+  role: "Coach" | "Student" | "Bot"
+  avatar_url: string | null
+  initials: string
+  online: boolean
+}
+
+type MeProfile = {
+  id: string
+  email: string | null
+  name: string
+  username: string | null
+  avatar_url: string | null
+  nivel: string
+  power_points: number
+  role: string
+}
+
+type NotificationItem = {
+  id: string
+  type: string
+  summary: string
+  emoji: string | null
+  read: boolean
+  createdAt: string
+  channelId: string | null
+  channelName: string
+  channelEmoji: string | null
+  messageId: string | null
+  actor: string
+  actorAvatar: string | null
+}
+
+type SavedItem = {
+  messageId: string
+  content: string
+  createdAt: string
+  channelId: string | null
+  channelName: string
+  channelEmoji: string | null
+  author: string
+  avatarUrl: string | null
 }
 
 function initialsFrom(name: string) {
@@ -85,26 +139,471 @@ function formatTime(iso: string) {
   return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
 }
 
-const ROLE_STYLES: Record<string, string> = {
+function timeAgo(iso: string) {
+  const diff = Date.now() - new Date(iso).getTime()
+  const min = Math.round(diff / 60000)
+  if (min < 1) return "ahora"
+  if (min < 60) return `hace ${min} min`
+  const h = Math.round(min / 60)
+  if (h < 24) return `hace ${h} h`
+  const d = Math.round(h / 24)
+  return `hace ${d} d`
+}
+
+const ROLE_LABEL: Record<ApiMember["role"], string> = {
+  Coach: "Profesores",
+  Student: "Estudiantes",
+  Bot: "Bots",
+}
+
+const ROLE_STYLES: Record<ApiMember["role"], string> = {
   Coach: "bg-[#d4af37]/15 text-[#d4af37]",
   Bot: "bg-[#3b82f6]/15 text-[#7fb0ff]",
   Student: "bg-white/5 text-[#a3abbf]",
 }
 
-const QUICK_REACTIONS = ["👑", "💪", "🔥", "🎯"]
+const QUICK_REACTIONS = ["👑", "💪", "🔥", "🎯", "⚡", "👍"]
 
-const MESSAGE_ACTIONS: { label: string; icon: typeof CornerUpLeft }[] = [
-  { label: "View Replies", icon: CornerUpLeft },
-  { label: "Forward", icon: CornerUpRight },
-  { label: "Select messages", icon: CheckSquare },
-  { label: "Copy message text", icon: Copy },
-  { label: "Copy message link", icon: Link2 },
-  { label: "Save Message", icon: Bookmark },
-  { label: "Notify on Replies", icon: Bell },
-  { label: "Mark as Unread", icon: EyeOff },
-  { label: "Report message", icon: Flag },
-  { label: "Copy Message ID", icon: Hash },
-]
+function Avatar({
+  url,
+  initials,
+  size = "md",
+}: {
+  url: string | null
+  initials: string
+  size?: "sm" | "md" | "lg"
+}) {
+  const dim = size === "lg" ? "h-10 w-10 text-xs" : size === "sm" ? "h-7 w-7 text-[10px]" : "h-8 w-8 text-[10px]"
+  if (url) {
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img src={url || "/placeholder.svg"} alt="" className={`${dim} shrink-0 rounded-full object-cover`} />
+  }
+  return (
+    <div
+      className={`${dim} flex shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#1e2942] to-[#131a2e] font-bold text-[#d4af37] ring-1 ring-inset ring-[#d4af37]/20`}
+    >
+      {initials}
+    </div>
+  )
+}
+
+/* --------------------------------- Top bar -------------------------------- */
+
+function TopBar({
+  me,
+  unread,
+  onToggleNotifications,
+  onToggleSaved,
+  onOpenSearch,
+  onToggleProfileMenu,
+}: {
+  me: MeProfile | null
+  unread: number
+  onToggleNotifications: () => void
+  onToggleSaved: () => void
+  onOpenSearch: () => void
+  onToggleProfileMenu: () => void
+}) {
+  return (
+    <header className="flex items-center gap-2 border-b border-[#1f2740] bg-[#0d1322] px-3 py-2">
+      <div className="flex items-center gap-2">
+        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#d4af37]/15 text-[#d4af37]">
+          <Bot className="h-4 w-4" />
+        </div>
+        <span className="hidden text-sm font-bold uppercase tracking-[0.14em] text-[#e8ebf2] xs:inline sm:inline">
+          GRIP
+        </span>
+      </div>
+
+      <div className="ml-auto flex items-center gap-1">
+        <button
+          onClick={onOpenSearch}
+          aria-label="Buscar"
+          className="flex h-9 w-9 items-center justify-center rounded-lg text-[#8790a6] transition-colors hover:bg-white/5 hover:text-[#e8ebf2]"
+        >
+          <Search className="h-5 w-5" />
+        </button>
+        <button
+          onClick={onToggleSaved}
+          aria-label="Guardados"
+          className="flex h-9 w-9 items-center justify-center rounded-lg text-[#8790a6] transition-colors hover:bg-white/5 hover:text-[#e8ebf2]"
+        >
+          <Bookmark className="h-5 w-5" />
+        </button>
+        <button
+          onClick={onToggleNotifications}
+          aria-label="Notificaciones"
+          className="relative flex h-9 w-9 items-center justify-center rounded-lg text-[#8790a6] transition-colors hover:bg-white/5 hover:text-[#e8ebf2]"
+        >
+          <Bell className="h-5 w-5" />
+          {unread > 0 && (
+            <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#ff5a5a] px-1 text-[10px] font-bold text-white">
+              {unread > 9 ? "9+" : unread}
+            </span>
+          )}
+        </button>
+
+        <button
+          onClick={onToggleProfileMenu}
+          aria-label="Menú de perfil"
+          className="ml-1 flex items-center gap-2 rounded-lg py-1 pl-1 pr-2 transition-colors hover:bg-white/5"
+        >
+          <Avatar url={me?.avatar_url ?? null} initials={initialsFrom(me?.name ?? "GR")} size="sm" />
+          <span className="hidden max-w-[120px] truncate text-sm font-medium text-[#e8ebf2] sm:inline">
+            {me?.username ?? me?.name ?? "Perfil"}
+          </span>
+          <ChevronDown className="h-4 w-4 text-[#8790a6]" />
+        </button>
+      </div>
+    </header>
+  )
+}
+
+function ProfileMenu({
+  me,
+  onClose,
+  onNavigate,
+}: {
+  me: MeProfile | null
+  onClose: () => void
+  onNavigate?: (id: ViewId) => void
+}) {
+  async function logout() {
+    try {
+      await createClient().auth.signOut()
+    } catch {
+      /* noop */
+    }
+    window.location.assign("/auth/login")
+  }
+
+  const items = [
+    {
+      label: "Perfil",
+      icon: User,
+      onClick: () => {
+        onNavigate?.("profile")
+        onClose()
+      },
+    },
+    {
+      label: "Configuraciones de la cuenta",
+      icon: Settings,
+      onClick: () => {
+        onNavigate?.("profile")
+        onClose()
+      },
+    },
+  ]
+
+  return (
+    <>
+      <div className="fixed inset-0 z-40" onClick={onClose} />
+      <div className="absolute right-2 top-12 z-50 w-60 overflow-hidden rounded-xl border border-[#1f2740] bg-[#0d1322] shadow-xl shadow-black/40">
+        <div className="flex items-center gap-2.5 border-b border-[#1f2740] p-3">
+          <Avatar url={me?.avatar_url ?? null} initials={initialsFrom(me?.name ?? "GR")} size="lg" />
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold text-[#e8ebf2]">{me?.username ?? me?.name ?? "Perfil"}</p>
+            <p className="truncate text-xs text-[#8790a6]">{me?.nivel ?? ""}</p>
+          </div>
+        </div>
+        <div className="py-1">
+          {items.map(({ label, icon: Icon, onClick }) => (
+            <button
+              key={label}
+              onClick={onClick}
+              className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-[#e8ebf2] transition-colors hover:bg-white/5"
+            >
+              <Icon className="h-4 w-4 text-[#8790a6]" />
+              {label}
+            </button>
+          ))}
+          <button
+            onClick={logout}
+            className="flex w-full items-center gap-3 border-t border-[#1f2740] px-4 py-2.5 text-left text-sm text-[#ff6b6b] transition-colors hover:bg-white/5"
+          >
+            <LogOut className="h-4 w-4" />
+            Cerrar sesión
+          </button>
+        </div>
+      </div>
+    </>
+  )
+}
+
+/* ------------------------------ Notifications ----------------------------- */
+
+function NotificationsPanel({
+  onClose,
+  onSelectChannel,
+}: {
+  onClose: () => void
+  onSelectChannel: (id: string) => void
+}) {
+  const { data, mutate } = useSWR<{ notifications: NotificationItem[]; unread: number }>(
+    "/api/chat/notifications",
+    fetcher,
+  )
+  const notifications = data?.notifications ?? []
+
+  async function markAll() {
+    await fetch("/api/chat/notifications", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: "{}" })
+    mutate()
+  }
+
+  function describe(n: NotificationItem) {
+    if (n.summary) return n.summary
+    if (n.type === "reaction") return `${n.actor} reaccionó ${n.emoji ?? ""} a tu mensaje`
+    if (n.type === "reply") return `${n.actor} respondió a tu mensaje`
+    if (n.type === "mention") return `${n.actor} te mencionó`
+    return `${n.actor} interactuó contigo`
+  }
+
+  return (
+    <>
+      <div className="fixed inset-0 z-40" onClick={onClose} />
+      <div className="absolute right-2 top-12 z-50 flex max-h-[70vh] w-[min(360px,92vw)] flex-col overflow-hidden rounded-xl border border-[#1f2740] bg-[#0d1322] shadow-xl shadow-black/40">
+        <div className="flex items-center justify-between border-b border-[#1f2740] px-4 py-3">
+          <span className="text-sm font-semibold text-[#e8ebf2]">Notificaciones</span>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={markAll}
+              className="rounded-lg px-2 py-1 text-xs text-[#8790a6] transition-colors hover:bg-white/5 hover:text-[#e8ebf2]"
+            >
+              Marcar leídas
+            </button>
+            <button
+              onClick={onClose}
+              aria-label="Cerrar"
+              className="flex h-7 w-7 items-center justify-center rounded-lg text-[#8790a6] hover:bg-white/5 hover:text-[#e8ebf2]"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+        <div className="flex-1 overflow-y-auto">
+          {notifications.length === 0 ? (
+            <p className="px-4 py-10 text-center text-sm text-[#6b7591]">No tienes notificaciones.</p>
+          ) : (
+            notifications.map((n) => (
+              <button
+                key={n.id}
+                onClick={() => {
+                  if (n.channelId) onSelectChannel(n.channelId)
+                  fetch("/api/chat/notifications", {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ id: n.id }),
+                  }).then(() => mutate())
+                  onClose()
+                }}
+                className={`flex w-full items-start gap-3 border-b border-[#1f2740] px-4 py-3 text-left transition-colors hover:bg-white/5 ${
+                  n.read ? "" : "bg-[#d4af37]/[0.06]"
+                }`}
+              >
+                <Avatar url={n.actorAvatar} initials={initialsFrom(n.actor)} size="sm" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm leading-snug text-[#e8ebf2]">{describe(n)}</p>
+                  <p className="mt-0.5 flex items-center gap-1.5 text-xs text-[#6b7591]">
+                    {n.channelName && (
+                      <span className="flex items-center gap-0.5">
+                        <Hash className="h-3 w-3" />
+                        {n.channelName}
+                      </span>
+                    )}
+                    <span>·</span>
+                    {timeAgo(n.createdAt)}
+                  </p>
+                </div>
+                {!n.read && <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-[#d4af37]" />}
+              </button>
+            ))
+          )}
+        </div>
+      </div>
+    </>
+  )
+}
+
+/* -------------------------------- Saved ----------------------------------- */
+
+function SavedPanel({
+  onClose,
+  onSelectChannel,
+}: {
+  onClose: () => void
+  onSelectChannel: (id: string) => void
+}) {
+  const { data, mutate } = useSWR<{ saved: SavedItem[] }>("/api/chat/saved", fetcher)
+  const saved = data?.saved ?? []
+
+  async function unsave(messageId: string) {
+    await fetch("/api/chat/saved", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messageId }),
+    })
+    mutate()
+  }
+
+  return (
+    <>
+      <div className="fixed inset-0 z-40" onClick={onClose} />
+      <div className="absolute right-2 top-12 z-50 flex max-h-[70vh] w-[min(380px,92vw)] flex-col overflow-hidden rounded-xl border border-[#1f2740] bg-[#0d1322] shadow-xl shadow-black/40">
+        <div className="flex items-center justify-between border-b border-[#1f2740] px-4 py-3">
+          <span className="flex items-center gap-2 text-sm font-semibold text-[#e8ebf2]">
+            <Bookmark className="h-4 w-4 text-[#d4af37]" /> Mensajes guardados
+          </span>
+          <button
+            onClick={onClose}
+            aria-label="Cerrar"
+            className="flex h-7 w-7 items-center justify-center rounded-lg text-[#8790a6] hover:bg-white/5 hover:text-[#e8ebf2]"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto">
+          {saved.length === 0 ? (
+            <p className="px-4 py-10 text-center text-sm text-[#6b7591]">
+              Aún no has guardado mensajes. Usa &quot;Guardar mensaje&quot; en las acciones.
+            </p>
+          ) : (
+            saved.map((s) => (
+              <div key={s.messageId} className="group border-b border-[#1f2740] px-4 py-3">
+                <div className="flex items-center gap-2">
+                  <Avatar url={s.avatarUrl} initials={initialsFrom(s.author)} size="sm" />
+                  <span className="text-sm font-semibold text-[#e8ebf2]">{s.author}</span>
+                  <button
+                    onClick={() => s.channelId && onSelectChannel(s.channelId)}
+                    className="ml-auto flex items-center gap-0.5 text-xs text-[#6b7591] transition-colors hover:text-[#d4af37]"
+                  >
+                    <Hash className="h-3 w-3" />
+                    {s.channelName}
+                  </button>
+                  <button
+                    onClick={() => unsave(s.messageId)}
+                    aria-label="Quitar de guardados"
+                    className="flex h-6 w-6 items-center justify-center rounded text-[#6b7591] transition-colors hover:bg-white/5 hover:text-[#ff6b6b]"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+                <p className="mt-1.5 text-pretty text-sm leading-relaxed text-[#c3cad9]">{s.content}</p>
+                <p className="mt-1 text-xs text-[#6b7591]">{timeAgo(s.createdAt)}</p>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </>
+  )
+}
+
+/* ---------------------------- Global search ------------------------------- */
+
+type SearchGroup = {
+  type: string
+  items: { id: string; title: string; subtitle: string; emoji?: string; avatarUrl?: string }[]
+}
+
+function GlobalSearchModal({
+  onClose,
+  onSelectChannel,
+}: {
+  onClose: () => void
+  onSelectChannel: (id: string) => void
+}) {
+  const [query, setQuery] = useState("")
+  const [groups, setGroups] = useState<SearchGroup[]>([])
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    const q = query.trim()
+    if (!q) {
+      setGroups([])
+      return
+    }
+    setLoading(true)
+    const t = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`).then((r) => r.json())
+        setGroups(res.groups ?? [])
+      } catch {
+        setGroups([])
+      } finally {
+        setLoading(false)
+      }
+    }, 250)
+    return () => clearTimeout(t)
+  }, [query])
+
+  return (
+    <div className="absolute inset-0 z-50 flex flex-col bg-[#0a0e1a]/95 backdrop-blur-sm">
+      <div className="flex items-center gap-2 border-b border-[#1f2740] px-4 py-3">
+        <Search className="h-5 w-5 shrink-0 text-[#6b7591]" />
+        <input
+          autoFocus
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Buscar cursos, misiones, canales y personas…"
+          className="min-w-0 flex-1 bg-transparent text-sm text-[#e8ebf2] outline-none placeholder:text-[#6b7591]"
+        />
+        {loading && <Loader2 className="h-4 w-4 animate-spin text-[#6b7591]" />}
+        <button
+          onClick={onClose}
+          aria-label="Cerrar búsqueda"
+          className="flex h-8 w-8 items-center justify-center rounded-lg text-[#8790a6] hover:bg-white/5 hover:text-[#e8ebf2]"
+        >
+          <X className="h-5 w-5" />
+        </button>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-4">
+        {!query.trim() ? (
+          <p className="py-10 text-center text-sm text-[#6b7591]">Escribe para buscar en todo el campus.</p>
+        ) : groups.length === 0 && !loading ? (
+          <p className="py-10 text-center text-sm text-[#6b7591]">Sin resultados para &quot;{query}&quot;.</p>
+        ) : (
+          <div className="mx-auto flex max-w-xl flex-col gap-5">
+            {groups.map((g) => (
+              <div key={g.type}>
+                <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#6b7591]">{g.type}</p>
+                <div className="flex flex-col gap-1">
+                  {g.items.map((it) => (
+                    <button
+                      key={`${g.type}-${it.id}`}
+                      onClick={() => {
+                        if (g.type === "Canales") {
+                          onSelectChannel(it.id)
+                          onClose()
+                        }
+                      }}
+                      className="flex items-center gap-3 rounded-lg border border-[#1f2740] bg-[#111726] px-3 py-2.5 text-left transition-colors hover:border-[#d4af37]/40"
+                    >
+                      {it.avatarUrl ? (
+                        <Avatar url={it.avatarUrl} initials={initialsFrom(it.title)} size="sm" />
+                      ) : (
+                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#1e2942] text-sm">
+                          {it.emoji ?? (g.type === "Canales" ? "#" : g.type === "Cursos" ? "📚" : "🎯")}
+                        </span>
+                      )}
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-[#e8ebf2]">{it.title}</p>
+                        <p className="truncate text-xs text-[#6b7591]">{it.subtitle}</p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/* ------------------------------ Channel list ------------------------------ */
 
 function ChannelList({
   groups,
@@ -120,17 +619,8 @@ function ChannelList({
 
   return (
     <div className="flex h-full w-full flex-col overflow-y-auto border-r border-[#1f2740] bg-[#0d1322]">
-      <div className="flex items-center gap-2.5 border-b border-[#1f2740] px-3 py-3">
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#d4af37]/15 text-[#d4af37]">
-          <Bot className="h-5 w-5" />
-        </div>
-        <span className="text-sm font-bold uppercase tracking-[0.14em] text-[#e8ebf2]">GRIP</span>
-      </div>
-
       <div className="flex flex-col gap-4 p-3">
-        {groups.length === 0 && (
-          <p className="px-1 text-xs text-[#6b7591]">Cargando canales…</p>
-        )}
+        {groups.length === 0 && <p className="px-1 text-xs text-[#6b7591]">Cargando canales…</p>}
         {groups.map((group) => {
           const isCollapsed = collapsed[group.label]
           return (
@@ -186,17 +676,50 @@ function ChannelList({
   )
 }
 
+/* ------------------------------- Messages --------------------------------- */
+
+function ReactionBar({
+  reactions,
+  onToggle,
+}: {
+  reactions: Reaction[]
+  onToggle: (emoji: string) => void
+}) {
+  if (reactions.length === 0) return null
+  return (
+    <div className="mt-1.5 flex flex-wrap gap-1">
+      {reactions.map((r) => (
+        <button
+          key={r.emoji}
+          onClick={() => onToggle(r.emoji)}
+          className={`flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs transition-colors ${
+            r.mine
+              ? "border-[#d4af37]/50 bg-[#d4af37]/15 text-[#e8ebf2]"
+              : "border-[#1f2740] bg-[#111726] text-[#c3cad9] hover:border-[#d4af37]/30"
+          }`}
+        >
+          <span>{r.emoji}</span>
+          <span className="tabular-nums">{r.count}</span>
+        </button>
+      ))}
+    </div>
+  )
+}
+
 function MessageRow({
   msg,
   index,
   onOpenActions,
+  onQuickReact,
+  onReply,
 }: {
   msg: DisplayMsg
   index: number
   onOpenActions: (msg: DisplayMsg) => void
+  onQuickReact: (msg: DisplayMsg, emoji: string) => void
+  onReply: (msg: DisplayMsg) => void
 }) {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
-
   const startPress = () => {
     timer.current = setTimeout(() => onOpenActions(msg), 450)
   }
@@ -218,9 +741,7 @@ function MessageRow({
       }}
       className="group relative flex gap-3 px-4 py-2 hover:bg-white/[0.02]"
     >
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#1e2942] to-[#131a2e] text-xs font-bold text-[#d4af37] ring-1 ring-inset ring-[#d4af37]/20">
-        {msg.initials}
-      </div>
+      <Avatar url={msg.avatarUrl} initials={msg.initials} size="lg" />
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <span className="text-sm font-semibold text-[#e8ebf2]">{msg.author}</span>
@@ -229,16 +750,54 @@ function MessageRow({
           )}
           <span className="text-xs text-[#6b7591]">{msg.time}</span>
         </div>
+
+        {msg.replySnippet && (
+          <div className="mt-1 flex items-center gap-1.5 border-l-2 border-[#d4af37]/40 pl-2 text-xs text-[#8790a6]">
+            <CornerUpLeft className="h-3 w-3 shrink-0" />
+            <span className="font-medium text-[#a3abbf]">{msg.replyAuthor}</span>
+            <span className="truncate">{msg.replySnippet}</span>
+          </div>
+        )}
+
         <div className="mt-1 max-w-lg">
           <p className="text-pretty text-sm leading-relaxed text-[#c3cad9]">{msg.content}</p>
         </div>
+
+        <ReactionBar reactions={msg.reactions} onToggle={(emoji) => onQuickReact(msg, emoji)} />
       </div>
 
-      {/* Options button (mouse/desktop affordance) */}
+      {/* Hover toolbar (pointer devices) */}
+      <div className="absolute -top-2 right-3 hidden items-center gap-0.5 rounded-lg border border-[#1f2740] bg-[#111726] p-0.5 shadow-lg shadow-black/30 group-hover:flex">
+        {QUICK_REACTIONS.slice(0, 4).map((emoji) => (
+          <button
+            key={emoji}
+            onClick={() => onQuickReact(msg, emoji)}
+            className="flex h-7 w-7 items-center justify-center rounded text-sm transition-colors hover:bg-white/10"
+          >
+            {emoji}
+          </button>
+        ))}
+        <button
+          onClick={() => onReply(msg)}
+          aria-label="Responder"
+          className="flex h-7 w-7 items-center justify-center rounded text-[#8790a6] transition-colors hover:bg-white/10 hover:text-[#e8ebf2]"
+        >
+          <CornerUpLeft className="h-4 w-4" />
+        </button>
+        <button
+          onClick={() => onOpenActions(msg)}
+          aria-label="Más acciones"
+          className="flex h-7 w-7 items-center justify-center rounded text-[#8790a6] transition-colors hover:bg-white/10 hover:text-[#e8ebf2]"
+        >
+          <ChevronDown className="h-4 w-4" />
+        </button>
+      </div>
+
+      {/* Always-visible options button for touch */}
       <button
         onClick={() => onOpenActions(msg)}
-        aria-label="Message actions"
-        className="absolute right-3 top-1 hidden h-7 w-7 items-center justify-center rounded-lg bg-[#111726] text-[#8790a6] ring-1 ring-[#1f2740] transition-colors hover:text-[#e8ebf2] group-hover:flex"
+        aria-label="Acciones del mensaje"
+        className="absolute right-3 top-1 flex h-7 w-7 items-center justify-center rounded-lg bg-[#111726]/80 text-[#8790a6] ring-1 ring-[#1f2740] transition-colors hover:text-[#e8ebf2] group-hover:hidden sm:hidden"
       >
         <ChevronDown className="h-4 w-4" />
       </button>
@@ -251,21 +810,27 @@ function MessagePane({
   messages,
   loading,
   sending,
+  replyingTo,
+  onCancelReply,
   onSend,
   onOpenNav,
-  onOpenSearch,
   onOpenMembers,
   onOpenActions,
+  onQuickReact,
+  onReply,
 }: {
   channel: string
   messages: DisplayMsg[]
   loading: boolean
   sending: boolean
+  replyingTo: DisplayMsg | null
+  onCancelReply: () => void
   onSend: (content: string) => void
   onOpenNav: () => void
-  onOpenSearch: () => void
   onOpenMembers: () => void
   onOpenActions: (msg: DisplayMsg) => void
+  onQuickReact: (msg: DisplayMsg, emoji: string) => void
+  onReply: (msg: DisplayMsg) => void
 }) {
   const [text, setText] = useState("")
   const scrollRef = useRef<HTMLDivElement | null>(null)
@@ -287,7 +852,7 @@ function MessagePane({
       <header className="flex items-center gap-2 border-b border-[#1f2740] px-3 py-3 sm:px-4">
         <button
           onClick={onOpenNav}
-          aria-label="Open menu"
+          aria-label="Abrir menú"
           className="relative -ml-1 flex h-8 w-8 items-center justify-center rounded-lg text-[#8790a6] transition-colors hover:bg-white/5 hover:text-[#e8ebf2] sm:hidden"
         >
           <Menu className="h-5 w-5" />
@@ -296,15 +861,8 @@ function MessagePane({
         <span className="truncate font-semibold text-[#e8ebf2]">{channel}</span>
         <div className="ml-auto flex items-center gap-1 sm:hidden">
           <button
-            onClick={onOpenSearch}
-            aria-label="Search messages"
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-[#8790a6] transition-colors hover:bg-white/5 hover:text-[#e8ebf2]"
-          >
-            <Search className="h-5 w-5" />
-          </button>
-          <button
             onClick={onOpenMembers}
-            aria-label="Show members"
+            aria-label="Ver miembros"
             className="flex h-8 w-8 items-center justify-center rounded-lg text-[#8790a6] transition-colors hover:bg-white/5 hover:text-[#e8ebf2]"
           >
             <Users className="h-5 w-5" />
@@ -316,13 +874,38 @@ function MessagePane({
         {loading && messages.length === 0 ? (
           <p className="px-4 py-8 text-center text-sm text-[#6b7591]">Cargando mensajes…</p>
         ) : messages.length === 0 ? (
-          <p className="px-4 py-8 text-center text-sm text-[#6b7591]">
-            Aún no hay mensajes. Sé el primero en escribir.
-          </p>
+          <p className="px-4 py-8 text-center text-sm text-[#6b7591]">Aún no hay mensajes. Sé el primero en escribir.</p>
         ) : (
-          messages.map((m, i) => <MessageRow key={m.id} msg={m} index={i} onOpenActions={onOpenActions} />)
+          messages.map((m, i) => (
+            <MessageRow
+              key={m.id}
+              msg={m}
+              index={i}
+              onOpenActions={onOpenActions}
+              onQuickReact={onQuickReact}
+              onReply={onReply}
+            />
+          ))
         )}
       </div>
+
+      {replyingTo && (
+        <div className="flex items-center gap-2 border-t border-[#1f2740] bg-[#0d1322] px-3 py-2">
+          <CornerUpLeft className="h-4 w-4 shrink-0 text-[#d4af37]" />
+          <div className="min-w-0 flex-1 text-xs">
+            <span className="text-[#8790a6]">En respuesta a </span>
+            <span className="font-medium text-[#e8ebf2]">{replyingTo.author}</span>
+            <span className="ml-2 truncate text-[#6b7591]">{replyingTo.content}</span>
+          </div>
+          <button
+            onClick={onCancelReply}
+            aria-label="Cancelar respuesta"
+            className="flex h-6 w-6 items-center justify-center rounded text-[#8790a6] hover:bg-white/5 hover:text-[#e8ebf2]"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
 
       <div className="border-t border-[#1f2740] p-3">
         <div className="flex items-center gap-2 rounded-xl border border-[#1f2740] bg-[#111726] px-3 py-2">
@@ -335,19 +918,19 @@ function MessagePane({
                 submit()
               }
             }}
-            placeholder={`Message #${channel}`}
+            placeholder={`Mensaje para #${channel}`}
             className="min-w-0 flex-1 bg-transparent text-sm text-[#e8ebf2] outline-none placeholder:text-[#6b7591]"
           />
-          <button aria-label="Add emoji" className="text-[#8790a6] transition-colors hover:text-[#d4af37]">
+          <button aria-label="Emoji" className="text-[#8790a6] transition-colors hover:text-[#d4af37]">
             <Smile className="h-5 w-5" />
           </button>
-          <button aria-label="Attach file" className="text-[#8790a6] transition-colors hover:text-[#d4af37]">
+          <button aria-label="Adjuntar" className="text-[#8790a6] transition-colors hover:text-[#d4af37]">
             <Paperclip className="h-5 w-5" />
           </button>
           <button
             onClick={submit}
             disabled={sending || !text.trim()}
-            aria-label="Send message"
+            aria-label="Enviar mensaje"
             className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#d4af37] text-[#0a0e1a] transition-colors hover:bg-[#e6c455] disabled:opacity-40"
           >
             <Send className="h-4 w-4" />
@@ -358,13 +941,13 @@ function MessagePane({
   )
 }
 
-function MemberRow({ member }: { member: Member }) {
+/* -------------------------------- Members --------------------------------- */
+
+function MemberRow({ member }: { member: ApiMember }) {
   return (
     <div className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 hover:bg-white/5">
       <div className="relative">
-        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#1e2942] text-[10px] font-bold text-[#d4af37]">
-          {member.initials}
-        </div>
+        <Avatar url={member.avatar_url} initials={member.initials} size="md" />
         <span
           className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-[#0d1322] ${
             member.online ? "bg-[#4ade80]" : "bg-[#4b5468]"
@@ -373,26 +956,28 @@ function MemberRow({ member }: { member: Member }) {
       </div>
       <div className="min-w-0 flex-1">
         <p className={`truncate text-sm ${member.online ? "text-[#e8ebf2]" : "text-[#8790a6]"}`}>{member.name}</p>
-        <p className="text-[10px] uppercase tracking-wide text-[#6b7591]">{member.rank}</p>
       </div>
       <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${ROLE_STYLES[member.role]}`}>{member.role}</span>
     </div>
   )
 }
 
-/** Desktop/tablet member column (sm+). Grouped by role; each row keeps its online/offline dot. */
-function MemberList() {
-  const order: Member["role"][] = ["Coach", "Student", "Bot"]
-  const groups = order
-    .map((role) => ({ role, members: MEMBERS.filter((m) => m.role === role) }))
+function groupMembers(members: ApiMember[]) {
+  const order: ApiMember["role"][] = ["Coach", "Student", "Bot"]
+  return order
+    .map((role) => ({ role, members: members.filter((m) => m.role === role) }))
     .filter((g) => g.members.length > 0)
+}
 
+function MemberList({ members }: { members: ApiMember[] }) {
+  const groups = groupMembers(members)
   return (
-    <div className="hidden h-full w-56 shrink-0 flex-col gap-4 overflow-y-auto border-l border-[#1f2740] bg-[#0d1322] p-3 sm:flex">
+    <div className="hidden h-full w-56 shrink-0 flex-col gap-4 overflow-y-auto border-l border-[#1f2740] bg-[#0d1322] p-3 lg:flex">
+      {groups.length === 0 && <p className="px-2 text-xs text-[#6b7591]">Cargando miembros…</p>}
       {groups.map((g) => (
         <div key={g.role}>
           <p className="px-2 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#6b7591]">
-            {g.role} — {g.members.length}
+            {ROLE_LABEL[g.role]} — {g.members.length}
           </p>
           <div className="flex flex-col gap-0.5">
             {g.members.map((m) => (
@@ -405,19 +990,15 @@ function MemberList() {
   )
 }
 
-/** Members grouped by role, used inside the mobile right drawer. */
-function MembersByRole() {
-  const order: Member["role"][] = ["Coach", "Student", "Bot"]
-  const groups = order
-    .map((role) => ({ role, members: MEMBERS.filter((m) => m.role === role) }))
-    .filter((g) => g.members.length > 0)
-
+function MembersByRole({ members }: { members: ApiMember[] }) {
+  const groups = groupMembers(members)
   return (
     <div className="flex flex-col gap-4 p-3">
+      {groups.length === 0 && <p className="px-2 text-xs text-[#6b7591]">Cargando miembros…</p>}
       {groups.map((g) => (
         <div key={g.role}>
           <p className="px-2 pb-1 text-[11px] font-semibold text-[#8790a6]">
-            {g.role} — {g.members.length}
+            {ROLE_LABEL[g.role]} — {g.members.length}
           </p>
           <div className="flex flex-col gap-0.5">
             {g.members.map((m) => (
@@ -430,7 +1011,8 @@ function MembersByRole() {
   )
 }
 
-/** Left slide-in drawer: icon nav + channel list (mobile only). */
+/* ------------------------------- Drawers ---------------------------------- */
+
 function LeftDrawer({
   groups,
   activeId,
@@ -477,13 +1059,20 @@ function LeftDrawer({
   )
 }
 
-/** Right slide-in drawer: members + pinned tabs (mobile only). */
-function RightDrawer({ channel, onClose }: { channel: string; onClose: () => void }) {
+function RightDrawer({
+  channel,
+  members,
+  onClose,
+}: {
+  channel: string
+  members: ApiMember[]
+  onClose: () => void
+}) {
   const [tab, setTab] = useState<"members" | "pinned">("members")
-  const onlineCount = MEMBERS.filter((m) => m.online).length
+  const onlineCount = members.filter((m) => m.online).length
 
   return (
-    <div className="absolute inset-0 z-40 sm:hidden">
+    <div className="absolute inset-0 z-40 lg:hidden">
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -501,7 +1090,7 @@ function RightDrawer({ channel, onClose }: { channel: string; onClose: () => voi
         <div className="flex items-center gap-2.5 border-b border-[#1f2740] px-4 py-3">
           <button
             onClick={onClose}
-            aria-label="Close members"
+            aria-label="Cerrar miembros"
             className="-ml-1 flex h-8 w-8 items-center justify-center rounded-lg text-[#8790a6] hover:bg-white/5 hover:text-[#e8ebf2]"
           >
             <ChevronRight className="h-5 w-5" />
@@ -513,10 +1102,10 @@ function RightDrawer({ channel, onClose }: { channel: string; onClose: () => voi
             <p className="truncate text-sm font-semibold text-[#e8ebf2]">{channel}</p>
             <p className="flex items-center gap-1.5 text-xs text-[#8790a6]">
               <span className="h-2 w-2 rounded-full bg-[#4ade80]" />
-              {onlineCount} online
+              {onlineCount} en línea
             </p>
           </div>
-          <button aria-label="Refresh" className="text-[#6b7591] hover:text-[#e8ebf2]">
+          <button aria-label="Refrescar" className="text-[#6b7591] hover:text-[#e8ebf2]">
             <RefreshCw className="h-4 w-4" />
           </button>
         </div>
@@ -525,9 +1114,7 @@ function RightDrawer({ channel, onClose }: { channel: string; onClose: () => voi
           <button
             onClick={() => setTab("members")}
             className={`flex flex-1 items-center justify-center gap-2 py-2.5 text-sm transition-colors ${
-              tab === "members"
-                ? "border-b-2 border-[#d4af37] text-[#e8ebf2]"
-                : "text-[#6b7591] hover:text-[#a3abbf]"
+              tab === "members" ? "border-b-2 border-[#d4af37] text-[#e8ebf2]" : "text-[#6b7591] hover:text-[#a3abbf]"
             }`}
           >
             <Users className="h-4 w-4" />
@@ -535,9 +1122,7 @@ function RightDrawer({ channel, onClose }: { channel: string; onClose: () => voi
           <button
             onClick={() => setTab("pinned")}
             className={`flex flex-1 items-center justify-center gap-2 py-2.5 text-sm transition-colors ${
-              tab === "pinned"
-                ? "border-b-2 border-[#d4af37] text-[#e8ebf2]"
-                : "text-[#6b7591] hover:text-[#a3abbf]"
+              tab === "pinned" ? "border-b-2 border-[#d4af37] text-[#e8ebf2]" : "text-[#6b7591] hover:text-[#a3abbf]"
             }`}
           >
             <Pin className="h-4 w-4" />
@@ -546,15 +1131,15 @@ function RightDrawer({ channel, onClose }: { channel: string; onClose: () => voi
 
         <div className="flex-1 overflow-y-auto">
           {tab === "members" ? (
-            <MembersByRole />
+            <MembersByRole members={members} />
           ) : (
             <div className="p-4">
               <div className="flex items-start gap-2 rounded-xl border border-[#1f2740] bg-[#111726] p-3">
                 <Pin className="mt-0.5 h-4 w-4 shrink-0 text-[#d4af37]" />
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-[#d4af37]">Pinned message</p>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-[#d4af37]">Mensaje fijado</p>
                   <p className="mt-1 text-sm text-[#c3cad9]">
-                    Welcome to GRIP. Post your daily wins and tag a coach for feedback.
+                    Bienvenido a GRIP. Publica tus victorias diarias y etiqueta a un profesor para recibir feedback.
                   </p>
                 </div>
               </div>
@@ -566,125 +1151,55 @@ function RightDrawer({ channel, onClose }: { channel: string; onClose: () => voi
   )
 }
 
-/** Message search modal (mobile). */
-function SearchModal({
-  channel,
-  messages,
+/* --------------------------- Message action sheet ------------------------- */
+
+function MessageActionSheet({
+  msg,
   onClose,
+  onReact,
+  onReply,
+  onSave,
 }: {
-  channel: string
-  messages: DisplayMsg[]
+  msg: DisplayMsg
   onClose: () => void
+  onReact: (emoji: string) => void
+  onReply: () => void
+  onSave: () => void
 }) {
-  const [query, setQuery] = useState("")
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({})
+  const actions: { label: string; icon: typeof CornerUpLeft; onClick: () => void; danger?: boolean }[] = [
+    { label: "Responder", icon: CornerUpLeft, onClick: onReply },
+    { label: "Reenviar", icon: CornerUpRight, onClick: onClose },
+    { label: "Seleccionar mensajes", icon: CheckSquare, onClick: onClose },
+    {
+      label: "Copiar texto del mensaje",
+      icon: Copy,
+      onClick: () => {
+        navigator.clipboard?.writeText(msg.content).catch(() => {})
+        onClose()
+      },
+    },
+    {
+      label: "Copiar enlace del mensaje",
+      icon: Link2,
+      onClick: () => {
+        navigator.clipboard?.writeText(`${window.location.origin}/dashboard#msg-${msg.id}`).catch(() => {})
+        onClose()
+      },
+    },
+    { label: "Guardar mensaje", icon: Bookmark, onClick: onSave },
+    { label: "Notificar respuestas", icon: Bell, onClick: onClose },
+    { label: "Marcar como no leído", icon: EyeOff, onClick: onClose },
+    { label: "Reportar mensaje", icon: Flag, onClick: onClose, danger: true },
+    {
+      label: "Copiar ID del mensaje",
+      icon: Hash,
+      onClick: () => {
+        navigator.clipboard?.writeText(msg.id).catch(() => {})
+        onClose()
+      },
+    },
+  ]
 
-  const results = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    if (!q) return messages
-    return messages.filter((m) => m.content.toLowerCase().includes(q) || m.author.toLowerCase().includes(q))
-  }, [query, messages])
-
-  return (
-    <div className="absolute inset-0 z-50 flex flex-col bg-[#0a0e1a] sm:hidden">
-      <div className="flex items-center justify-between border-b border-[#1f2740] px-4 py-3">
-        <span className="text-lg font-semibold text-[#e8ebf2]">Searching messages</span>
-        <button
-          onClick={onClose}
-          aria-label="Close search"
-          className="flex h-8 w-8 items-center justify-center rounded-lg text-[#8790a6] hover:bg-white/5 hover:text-[#e8ebf2]"
-        >
-          <X className="h-5 w-5" />
-        </button>
-      </div>
-
-      <div className="border-b border-[#1f2740] p-4">
-        <div className="rounded-xl border border-[#1f2740] bg-[#111726] p-3">
-          <span className="inline-flex items-center gap-1.5 rounded-lg bg-[#1e2942] px-2 py-1 text-xs text-[#c3cad9]">
-            <Hash className="h-3 w-3" /> {channel}
-            <button onClick={() => setQuery("")} aria-label="Clear channel filter">
-              <X className="h-3 w-3 text-[#8790a6]" />
-            </button>
-          </span>
-          <div className="mt-2 flex items-center gap-2">
-            <Search className="h-4 w-4 shrink-0 text-[#6b7591]" />
-            <input
-              autoFocus
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Continue searching..."
-              className="min-w-0 flex-1 bg-transparent text-sm text-[#e8ebf2] outline-none placeholder:text-[#6b7591]"
-            />
-          </div>
-        </div>
-        <div className="mt-3 flex items-center justify-end gap-2">
-          <button
-            onClick={() => setQuery("")}
-            className="rounded-lg border border-[#1f2740] px-3 py-1.5 text-xs text-[#c3cad9] hover:bg-white/5"
-          >
-            Clear
-          </button>
-        </div>
-      </div>
-
-      <div className="flex items-center gap-2 overflow-x-auto border-b border-[#1f2740] px-4 py-3">
-        <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-[#6b7591]">
-          <SlidersHorizontal className="h-4 w-4" /> Filters
-        </span>
-        <button className="shrink-0 rounded-full border border-[#1f2740] bg-[#111726] px-3 py-1.5 text-xs text-[#c3cad9]">
-          Sort: Newest
-        </button>
-        <button className="shrink-0 rounded-full border border-[#1f2740] bg-[#111726] px-3 py-1.5 text-xs text-[#c3cad9]">
-          From: Any user
-        </button>
-        <button className="shrink-0 rounded-full border border-[#1f2740] bg-[#111726] px-3 py-1.5 text-xs text-[#c3cad9]">
-          In: #{channel}
-        </button>
-      </div>
-
-      <div className="flex-1 overflow-y-auto">
-        {results.length === 0 ? (
-          <p className="px-4 py-8 text-center text-sm text-[#6b7591]">No messages found.</p>
-        ) : (
-          results.map((m) => {
-            const isLong = m.content.length > 90
-            const isExpanded = expanded[m.id]
-            return (
-              <div key={m.id} className="border-b border-[#1f2740] p-4">
-                <div className="flex items-center gap-2">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#1e2942] text-[10px] font-bold text-[#d4af37]">
-                    {m.initials}
-                  </div>
-                  <span className="text-sm font-semibold text-[#e8ebf2]">{m.author}</span>
-                  <span className="ml-auto flex items-center gap-1 text-xs text-[#6b7591]">
-                    <Hash className="h-3 w-3" /> {channel}
-                  </span>
-                </div>
-                <p className={`mt-2 text-sm leading-relaxed text-[#c3cad9] ${isLong && !isExpanded ? "line-clamp-2" : ""}`}>
-                  {m.content}
-                </p>
-                <div className="mt-2 flex items-center justify-between">
-                  <span className="text-xs text-[#6b7591]">{m.time}</span>
-                  {isLong && (
-                    <button
-                      onClick={() => setExpanded((p) => ({ ...p, [m.id]: !p[m.id] }))}
-                      className="rounded-lg border border-[#1f2740] px-2 py-1 text-xs text-[#c3cad9] hover:bg-white/5"
-                    >
-                      {isExpanded ? "Collapse" : "Expand"}
-                    </button>
-                  )}
-                </div>
-              </div>
-            )
-          })
-        )}
-      </div>
-    </div>
-  )
-}
-
-/** Long-press / options action sheet with quick reactions. */
-function MessageActionSheet({ msg, onClose }: { msg: DisplayMsg; onClose: () => void }) {
   return (
     <div className="absolute inset-0 z-50 flex flex-col justify-end">
       <motion.div
@@ -701,41 +1216,25 @@ function MessageActionSheet({ msg, onClose }: { msg: DisplayMsg; onClose: () => 
         transition={{ type: "spring", stiffness: 360, damping: 38 }}
         className="relative max-h-[86%] overflow-y-auto rounded-t-2xl border-t border-[#1f2740] bg-[#0d1322] pb-6"
       >
-        {/* Quick reactions row */}
         <div className="flex items-center gap-2 border-b border-[#1f2740] px-4 py-3">
           {QUICK_REACTIONS.map((emoji) => (
             <button
               key={emoji}
-              onClick={onClose}
+              onClick={() => onReact(emoji)}
               className="flex h-11 w-11 items-center justify-center rounded-full bg-[#111726] text-xl transition-colors hover:bg-white/10"
             >
               {emoji}
             </button>
           ))}
-          <button
-            onClick={onClose}
-            aria-label="More reactions"
-            className="ml-auto flex h-11 w-11 items-center justify-center rounded-full bg-[#111726] text-[#8790a6] transition-colors hover:bg-white/10"
-          >
-            <ChevronDown className="h-5 w-5" />
-          </button>
         </div>
 
-        {/* Actions */}
         <div className="py-2">
-          {MESSAGE_ACTIONS.map(({ label, icon: Icon }) => (
+          {actions.map(({ label, icon: Icon, onClick, danger }) => (
             <button
               key={label}
-              onClick={() => {
-                if (label === "Copy message text") {
-                  navigator.clipboard?.writeText(msg.content).catch(() => {})
-                } else if (label === "Copy Message ID") {
-                  navigator.clipboard?.writeText(msg.id).catch(() => {})
-                }
-                onClose()
-              }}
+              onClick={onClick}
               className={`flex w-full items-center gap-4 px-5 py-3 text-left text-[15px] transition-colors hover:bg-white/5 ${
-                label === "Report message" ? "text-[#ff6b6b]" : "text-[#e8ebf2]"
+                danger ? "text-[#ff6b6b]" : "text-[#e8ebf2]"
               }`}
             >
               <Icon className="h-5 w-5 shrink-0 text-current opacity-90" />
@@ -747,6 +1246,8 @@ function MessageActionSheet({ msg, onClose }: { msg: DisplayMsg; onClose: () => 
     </div>
   )
 }
+
+/* --------------------------------- Root ----------------------------------- */
 
 export function ChatView({
   activeView,
@@ -760,13 +1261,29 @@ export function ChatView({
   const [rightDrawer, setRightDrawer] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const [actionMsg, setActionMsg] = useState<DisplayMsg | null>(null)
+  const [replyingTo, setReplyingTo] = useState<DisplayMsg | null>(null)
   const [sending, setSending] = useState(false)
+  const [panel, setPanel] = useState<"none" | "notifications" | "saved" | "profile">("none")
   const { roomUrl, closeCall } = useLiveCall()
+
+  const { data: meData } = useSWR<{ profile: MeProfile | null }>("/api/me", fetcher)
+  const me = meData?.profile ?? null
+
+  const { data: membersData } = useSWR<{ members: ApiMember[] }>("/api/chat/members", fetcher, {
+    refreshInterval: 30000,
+  })
+  const members = useMemo(() => membersData?.members ?? [], [membersData])
+
+  const { data: notifData } = useSWR<{ notifications: NotificationItem[]; unread: number }>(
+    "/api/chat/notifications",
+    fetcher,
+    { refreshInterval: 20000 },
+  )
+  const unread = notifData?.unread ?? 0
 
   const { data: channelsData } = useSWR<{ channels: ChannelRow[] }>("/api/chat/channels", fetcher)
   const channels = useMemo(() => channelsData?.channels ?? [], [channelsData])
 
-  // Selecciona el primer canal automáticamente una vez cargados.
   useEffect(() => {
     if (!channelId && channels.length > 0) setChannelId(channels[0].id)
   }, [channels, channelId])
@@ -774,7 +1291,6 @@ export function ChatView({
   const activeChannel = channels.find((c) => c.id === channelId)
   const channelName = activeChannel?.name ?? ""
 
-  // Agrupa canales reales por categoría para la barra lateral.
   const groups = useMemo<ChannelGroupView[]>(() => {
     const map = new Map<string, { id: string; name: string; emoji: string }[]>()
     for (const c of channels) {
@@ -789,10 +1305,11 @@ export function ChatView({
     }))
   }, [channels])
 
-  // Mensajes reales del canal activo, con refresco periódico ligero.
-  const { data: msgData, isLoading, mutate: mutateMessages } = useSWR<{
-    messages: (DisplayMsg & { created_at: string })[]
-  }>(channelId ? `/api/chat/messages?channelId=${channelId}` : null, fetcher, {
+  const {
+    data: msgData,
+    isLoading,
+    mutate: mutateMessages,
+  } = useSWR<{ messages: any[] }>(channelId ? `/api/chat/messages?channelId=${channelId}` : null, fetcher, {
     refreshInterval: 5000,
   })
 
@@ -802,9 +1319,13 @@ export function ChatView({
         id: m.id,
         author: m.username ?? m.author ?? "member",
         initials: initialsFrom(m.username ?? m.author ?? "member"),
+        avatarUrl: m.avatar_url ?? null,
         time: formatTime(m.created_at),
         content: m.content,
         mine: Boolean(m.mine),
+        reactions: (m.reactions ?? []) as Reaction[],
+        replyAuthor: m.replyAuthor ?? null,
+        replySnippet: m.replySnippet ?? null,
       })),
     [msgData],
   )
@@ -812,12 +1333,14 @@ export function ChatView({
   async function sendMessage(content: string) {
     if (!channelId) return
     setSending(true)
+    const replyTo = replyingTo?.id ?? null
     try {
       await fetch("/api/chat/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ channelId, content }),
+        body: JSON.stringify({ channelId, content, replyTo }),
       })
+      setReplyingTo(null)
       await mutateMessages()
     } catch (err) {
       console.log("[v0] sendMessage error:", err)
@@ -826,35 +1349,79 @@ export function ChatView({
     }
   }
 
+  async function toggleReaction(msg: DisplayMsg, emoji: string) {
+    try {
+      await fetch("/api/chat/reactions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messageId: msg.id, emoji }),
+      })
+      await mutateMessages()
+    } catch (err) {
+      console.log("[v0] toggleReaction error:", err)
+    }
+  }
+
+  async function saveMessage(msg: DisplayMsg) {
+    try {
+      await fetch("/api/chat/saved", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messageId: msg.id }),
+      })
+    } catch (err) {
+      console.log("[v0] saveMessage error:", err)
+    }
+  }
+
   const selectChannel = (id: string) => {
     setChannelId(id)
     setLeftDrawer(false)
+    setPanel("none")
   }
 
   return (
-    <div className="relative flex h-full overflow-hidden border-0 sm:rounded-2xl sm:border sm:border-[#1f2740]">
-      {/* Channel list — tablet/desktop only */}
-      <div className="hidden w-56 shrink-0 sm:block">
-        <ChannelList groups={groups} active={channelId} onSelect={selectChannel} />
-      </div>
-
-      {/* Message pane — always full-screen on mobile */}
-      <MessagePane
-        channel={channelName}
-        messages={messages}
-        loading={isLoading}
-        sending={sending}
-        onSend={sendMessage}
-        onOpenNav={() => setLeftDrawer(true)}
+    <div className="relative flex h-full flex-col overflow-hidden border-0 sm:rounded-2xl sm:border sm:border-[#1f2740]">
+      <TopBar
+        me={me}
+        unread={unread}
         onOpenSearch={() => setSearchOpen(true)}
-        onOpenMembers={() => setRightDrawer(true)}
-        onOpenActions={setActionMsg}
+        onToggleSaved={() => setPanel((p) => (p === "saved" ? "none" : "saved"))}
+        onToggleNotifications={() => setPanel((p) => (p === "notifications" ? "none" : "notifications"))}
+        onToggleProfileMenu={() => setPanel((p) => (p === "profile" ? "none" : "profile"))}
       />
 
-      {/* Member column — lg+ only */}
-      <MemberList />
+      <div className="flex min-h-0 flex-1">
+        <div className="hidden w-56 shrink-0 sm:block">
+          <ChannelList groups={groups} active={channelId} onSelect={selectChannel} />
+        </div>
 
-      {/* Mobile overlays */}
+        <MessagePane
+          channel={channelName}
+          messages={messages}
+          loading={isLoading}
+          sending={sending}
+          replyingTo={replyingTo}
+          onCancelReply={() => setReplyingTo(null)}
+          onSend={sendMessage}
+          onOpenNav={() => setLeftDrawer(true)}
+          onOpenMembers={() => setRightDrawer(true)}
+          onOpenActions={setActionMsg}
+          onQuickReact={toggleReaction}
+          onReply={(m) => setReplyingTo(m)}
+        />
+
+        <MemberList members={members} />
+      </div>
+
+      {/* Top-bar dropdowns */}
+      {panel === "profile" && <ProfileMenu me={me} onNavigate={onNavigate} onClose={() => setPanel("none")} />}
+      {panel === "notifications" && (
+        <NotificationsPanel onClose={() => setPanel("none")} onSelectChannel={selectChannel} />
+      )}
+      {panel === "saved" && <SavedPanel onClose={() => setPanel("none")} onSelectChannel={selectChannel} />}
+
+      {/* Overlays */}
       <AnimatePresence>
         {leftDrawer && (
           <LeftDrawer
@@ -867,12 +1434,31 @@ export function ChatView({
             onClose={() => setLeftDrawer(false)}
           />
         )}
-        {rightDrawer && <RightDrawer key="right" channel={channelName} onClose={() => setRightDrawer(false)} />}
-        {searchOpen && (
-          <SearchModal key="search" channel={channelName} messages={messages} onClose={() => setSearchOpen(false)} />
+        {rightDrawer && (
+          <RightDrawer key="right" channel={channelName} members={members} onClose={() => setRightDrawer(false)} />
         )}
-        {actionMsg && <MessageActionSheet key="actions" msg={actionMsg} onClose={() => setActionMsg(null)} />}
+        {actionMsg && (
+          <MessageActionSheet
+            key="actions"
+            msg={actionMsg}
+            onClose={() => setActionMsg(null)}
+            onReact={(emoji) => {
+              toggleReaction(actionMsg, emoji)
+              setActionMsg(null)
+            }}
+            onReply={() => {
+              setReplyingTo(actionMsg)
+              setActionMsg(null)
+            }}
+            onSave={() => {
+              saveMessage(actionMsg)
+              setActionMsg(null)
+            }}
+          />
+        )}
       </AnimatePresence>
+
+      {searchOpen && <GlobalSearchModal onClose={() => setSearchOpen(false)} onSelectChannel={selectChannel} />}
 
       {roomUrl && <LiveCallModal roomUrl={roomUrl} onClose={closeCall} />}
     </div>
