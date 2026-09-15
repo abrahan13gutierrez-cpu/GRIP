@@ -380,32 +380,27 @@ function MemberRow({ member }: { member: Member }) {
   )
 }
 
-/** Desktop/tablet member column (lg+). Unchanged behavior: grouped by online/offline. */
+/** Desktop/tablet member column (sm+). Grouped by role; each row keeps its online/offline dot. */
 function MemberList() {
-  const online = MEMBERS.filter((m) => m.online)
-  const offline = MEMBERS.filter((m) => !m.online)
+  const order: Member["role"][] = ["Coach", "Student", "Bot"]
+  const groups = order
+    .map((role) => ({ role, members: MEMBERS.filter((m) => m.role === role) }))
+    .filter((g) => g.members.length > 0)
+
   return (
-    <div className="hidden h-full w-56 shrink-0 flex-col gap-4 overflow-y-auto border-l border-[#1f2740] bg-[#0d1322] p-3 lg:flex">
-      <div>
-        <p className="px-2 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#6b7591]">
-          Online — {online.length}
-        </p>
-        <div className="flex flex-col gap-0.5">
-          {online.map((m) => (
-            <MemberRow key={m.id} member={m} />
-          ))}
+    <div className="hidden h-full w-56 shrink-0 flex-col gap-4 overflow-y-auto border-l border-[#1f2740] bg-[#0d1322] p-3 sm:flex">
+      {groups.map((g) => (
+        <div key={g.role}>
+          <p className="px-2 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#6b7591]">
+            {g.role} — {g.members.length}
+          </p>
+          <div className="flex flex-col gap-0.5">
+            {g.members.map((m) => (
+              <MemberRow key={m.id} member={m} />
+            ))}
+          </div>
         </div>
-      </div>
-      <div>
-        <p className="px-2 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#6b7591]">
-          Offline — {offline.length}
-        </p>
-        <div className="flex flex-col gap-0.5">
-          {offline.map((m) => (
-            <MemberRow key={m.id} member={m} />
-          ))}
-        </div>
-      </div>
+      ))}
     </div>
   )
 }
@@ -488,7 +483,7 @@ function RightDrawer({ channel, onClose }: { channel: string; onClose: () => voi
   const onlineCount = MEMBERS.filter((m) => m.online).length
 
   return (
-    <div className="absolute inset-0 z-40 lg:hidden">
+    <div className="absolute inset-0 z-40 sm:hidden">
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
