@@ -2,8 +2,6 @@
 
 import { useState } from "react"
 import { AnimatePresence, motion } from "framer-motion"
-import Image from "next/image"
-import Link from "next/link"
 import { MessageCircle, Brain, User, Wallet, Crown, ListChecks, ShoppingBag, MoreHorizontal } from "lucide-react"
 import type { ViewId } from "@/lib/dashboard/data"
 
@@ -37,20 +35,6 @@ export function DashboardSidebar({
       aria-label="Primary"
       className="flex h-full w-[68px] shrink-0 flex-col items-center gap-1 border-r border-[#1f2740] bg-[#0b101f] py-4"
     >
-      <Link
-        href="/dashboard"
-        className="mb-4 flex items-center justify-center transition-opacity hover:opacity-80"
-      >
-        <Image
-          src="/grip-emblem.png"
-          alt="GRIP"
-          width={44}
-          height={44}
-          priority
-          className="h-11 w-11 shrink-0 rounded-lg object-contain"
-        />
-      </Link>
-
       {NAV.map((item) => {
         const Icon = item.icon
         const isActive = active === item.id
