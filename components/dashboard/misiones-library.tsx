@@ -14,16 +14,6 @@ const OSWALD = "font-[family-name:var(--font-oswald)]"
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json())
 
-// Fallback local de playback IDs; los reales vienen de la tabla `videos` (Mux).
-const DRILL_PLAYBACK_IDS: Record<string, string> = {
-  "Resistance Band - Back": "s8Curbhz4dIc301FUabuAvDUg4vb7Y01uUKacIs2qAKWc",
-  "Assistance Resistance - Front": "AhXTBI17FXLfIsa7z59HkYhxejZLUfHjTC02WPFshVPI",
-  "CB Boz - Wrist Band": "5nex2D3t4Sofw4Ayrqcj1Bgelufxj7Z7yQ6rTPYiDnc",
-  "Blocking Aqua Bag": "hDf4L01SaB1w4y4EjcgzTD6BjiNA4Ns9c7bWeYxwlccU",
-  "Blocking w/ Stick": "MZ2ANSYqKOJ934Mth8502TgxFH78DYa44rHC00XCicb3A",
-  "Blocking Regular Glove": "f00R3uJoRIK02bPXn3qmGMKHTpqMUxKjcVIx0200dRq8pMQ",
-}
-
 type Drill = { id: number; cat: string; name: string; level: string }
 
 // Los chips de filtro se mantienen fijos aunque una categoría aún no tenga drills reales.
@@ -64,11 +54,8 @@ export function MisionesLibrary() {
     fetcher,
   )
 
-  // Los playback IDs reales (BD) tienen prioridad; el mapa local es respaldo.
-  const playbackIds = useMemo(
-    () => ({ ...DRILL_PLAYBACK_IDS, ...(videosData?.videos ?? {}) }),
-    [videosData],
-  )
+  // Los playback IDs viven en la tabla `videos` de Supabase (consulta real vía /api/videos).
+  const playbackIds = useMemo(() => videosData?.videos ?? {}, [videosData])
   const progress = progressData?.progress ?? {}
 
   async function setStatus(drillId: number, status: "in_progress" | "completed" | "pending") {
