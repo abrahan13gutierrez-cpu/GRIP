@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import useSWR from "swr"
 import { AnimatePresence, motion } from "framer-motion"
 import {
@@ -1266,8 +1266,56 @@ export function ChatView({
   const [panel, setPanel] = useState<"none" | "notifications" | "saved" | "profile">("none")
   const { roomUrl, closeCall } = useLiveCall()
 
+  // Cliente Supabase del navegador: dentro del iframe de preview es el único que
+  // conserva la sesión (las cookies no llegan a las rutas de servidor), por eso
+  // los mensajes y las reacciones se leen/escriben directamente desde aquí.
+  const supabase = useMemo(() => createClient(), [])
+  const [userId, setUserId] = useState<string | null>(null)
+  const [clientProfile, setClientProfile] = useState<MeProfile | null>(null)
+  const [rawMessages, setRawMessages] = useState<any[]>([])
+  const [msgLoading, setMsgLoading] = useState(false)
+
   const { data: meData } = useSWR<{ profile: MeProfile | null }>("/api/me", fetcher)
-  const me = meData?.profile ?? null
+  const me = meData?.profile ?? clientProfile
+
+  // Usuario autenticado (sesión del navegador).
+  useEffect(() => {
+    let active = true
+    supabase.auth.getUser().then(({ data }) => {
+      if (active) setUserId(data.user?.id ?? null)
+    })
+    return () => {
+      active = false
+    }
+  }, [supabase])
+
+  // Perfil propio de respaldo si /api/me no ve la sesión en el iframe.
+  useEffect(() => {
+    if (!userId) return
+    let active = true
+    supabase
+      .from("profiles")
+      .select("id, username, display_name, avatar_url, nivel, power_points, role")
+      .eq("id", userId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (active && data) {
+          setClientProfile({
+            id: data.id,
+            email: null,
+            name: data.display_name || data.username || "GRIP",
+            username: data.username ?? null,
+            avatar_url: data.avatar_url ?? null,
+            nivel: data.nivel ?? "",
+            power_points: data.power_points ?? 0,
+            role: data.role ?? "",
+          })
+        }
+      })
+    return () => {
+      active = false
+    }
+  }, [userId, supabase])
 
   const { data: membersData } = useSWR<{ members: ApiMember[] }>("/api/chat/members", fetcher, {
     refreshInterval: 30000,
@@ -1305,60 +1353,148 @@ export function ChatView({
     }))
   }, [channels])
 
-  const {
-    data: msgData,
-    isLoading,
-    mutate: mutateMessages,
-  } = useSWR<{ messages: any[] }>(channelId ? `/api/chat/messages?channelId=${channelId}` : null, fetcher, {
-    refreshInterval: 5000,
-  })
+  // Carga los mensajes del canal vía RPC seguro (autor + reacciones agregadas,
+  // sin exponer columnas sensibles de profiles).
+  const loadMessages = useCallback(
+    async (chId: string) => {
+      const { data, error } = await supabase.rpc("get_channel_messages", { p_channel_id: chId })
+      if (error) {
+        console.log("[v0] loadMessages error:", error.message)
+        return
+      }
+      setRawMessages(data ?? [])
+    },
+    [supabase],
+  )
+
+  // Carga inicial y al cambiar de canal.
+  useEffect(() => {
+    if (!channelId) {
+      setRawMessages([])
+      return
+    }
+    setMsgLoading(true)
+    setRawMessages([])
+    loadMessages(channelId).finally(() => setMsgLoading(false))
+  }, [channelId, loadMessages])
+
+  // Suscripción Realtime al canal activo. Se limpia al cambiar de canal o
+  // desmontar para no acumular conexiones abiertas.
+  useEffect(() => {
+    if (!channelId) return
+    const rt = supabase
+      .channel(`room:${channelId}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "messages", filter: `channel_id=eq.${channelId}` },
+        () => loadMessages(channelId),
+      )
+      .on("postgres_changes", { event: "*", schema: "public", table: "reactions" }, () => loadMessages(channelId))
+      .subscribe()
+    return () => {
+      supabase.removeChannel(rt)
+    }
+  }, [channelId, supabase, loadMessages])
 
   const messages: DisplayMsg[] = useMemo(
     () =>
-      (msgData?.messages ?? []).map((m: any) => ({
+      rawMessages.map((m: any) => ({
         id: m.id,
-        author: m.username ?? m.author ?? "member",
-        initials: initialsFrom(m.username ?? m.author ?? "member"),
-        avatarUrl: m.avatar_url ?? null,
+        author: m.author_name ?? "member",
+        initials: initialsFrom(m.author_name ?? "member"),
+        avatarUrl: m.author_avatar ?? null,
         time: formatTime(m.created_at),
         content: m.content,
-        mine: Boolean(m.mine),
+        mine: userId ? m.user_id === userId : false,
         reactions: (m.reactions ?? []) as Reaction[],
-        replyAuthor: m.replyAuthor ?? null,
-        replySnippet: m.replySnippet ?? null,
+        replyAuthor: m.reply_author ?? null,
+        replySnippet: m.reply_snippet ?? null,
       })),
-    [msgData],
+    [rawMessages, userId],
   )
 
   async function sendMessage(content: string) {
-    if (!channelId) return
+    if (!channelId || !userId) return
     setSending(true)
     const replyTo = replyingTo?.id ?? null
+    const optimisticId = `optimistic-${Date.now()}`
+    // Muestra el mensaje de inmediato; la recarga lo reemplaza por la fila real.
+    setRawMessages((prev) => [
+      ...prev,
+      {
+        id: optimisticId,
+        user_id: userId,
+        content,
+        created_at: new Date().toISOString(),
+        reply_to: replyTo,
+        author_name: me?.name ?? me?.username ?? "member",
+        author_avatar: me?.avatar_url ?? null,
+        reply_author: replyingTo?.author ?? null,
+        reply_snippet: replyingTo?.content ?? null,
+        reactions: [],
+      },
+    ])
+    setReplyingTo(null)
     try {
-      await fetch("/api/chat/messages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ channelId, content, replyTo }),
+      const { error } = await supabase.from("messages").insert({
+        channel_id: channelId,
+        user_id: userId,
+        content,
+        ...(replyTo ? { reply_to: replyTo } : {}),
       })
-      setReplyingTo(null)
-      await mutateMessages()
+      if (error) {
+        console.log("[v0] sendMessage error:", error.message)
+        setRawMessages((prev) => prev.filter((m) => m.id !== optimisticId))
+        return
+      }
+      await loadMessages(channelId)
     } catch (err) {
       console.log("[v0] sendMessage error:", err)
+      setRawMessages((prev) => prev.filter((m) => m.id !== optimisticId))
     } finally {
       setSending(false)
     }
   }
 
+  // Alterna el contador de una reacción localmente para respuesta instantánea.
+  function applyOptimisticReaction(messageId: string, emoji: string, add: boolean) {
+    setRawMessages((prev) =>
+      prev.map((m) => {
+        if (m.id !== messageId) return m
+        const list: Reaction[] = Array.isArray(m.reactions) ? [...m.reactions] : []
+        const idx = list.findIndex((r) => r.emoji === emoji)
+        if (add) {
+          if (idx === -1) list.push({ emoji, count: 1, mine: true })
+          else list[idx] = { ...list[idx], count: list[idx].count + 1, mine: true }
+        } else if (idx !== -1) {
+          const count = list[idx].count - 1
+          if (count <= 0) list.splice(idx, 1)
+          else list[idx] = { ...list[idx], count, mine: false }
+        }
+        return { ...m, reactions: list }
+      }),
+    )
+  }
+
   async function toggleReaction(msg: DisplayMsg, emoji: string) {
+    if (!userId || msg.id.startsWith("optimistic-")) return
+    const already = msg.reactions.some((r) => r.emoji === emoji && r.mine)
+    applyOptimisticReaction(msg.id, emoji, !already)
     try {
-      await fetch("/api/chat/reactions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messageId: msg.id, emoji }),
-      })
-      await mutateMessages()
+      if (already) {
+        await supabase
+          .from("reactions")
+          .delete()
+          .eq("message_id", msg.id)
+          .eq("user_id", userId)
+          .eq("emoji", emoji)
+      } else {
+        await supabase.from("reactions").insert({ message_id: msg.id, user_id: userId, emoji })
+      }
+      if (channelId) await loadMessages(channelId)
     } catch (err) {
       console.log("[v0] toggleReaction error:", err)
+      if (channelId) await loadMessages(channelId)
     }
   }
 
@@ -1399,7 +1535,7 @@ export function ChatView({
         <MessagePane
           channel={channelName}
           messages={messages}
-          loading={isLoading}
+          loading={msgLoading}
           sending={sending}
           replyingTo={replyingTo}
           onCancelReply={() => setReplyingTo(null)}
