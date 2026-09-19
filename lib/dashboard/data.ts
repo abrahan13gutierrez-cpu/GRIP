@@ -8,6 +8,7 @@ export type ViewId =
   | "rank"
   | "checklist"
   | "marketplace"
+  | "profile"
 
 export type Course = {
   id: string

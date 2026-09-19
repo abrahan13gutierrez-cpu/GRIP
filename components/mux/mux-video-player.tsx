@@ -34,6 +34,9 @@ export function MuxVideoPlayer({
           {
             aspectRatio: "16 / 9",
             width: "100%",
+            // Llena el recuadro 16:9 recortando sobrantes en vez de dejar franjas negras (pillarboxing).
+            "--media-object-fit": "cover",
+            "--media-object-position": "center",
             "--controls-backdrop-color": "rgba(10,12,15,0.6)",
           } as React.CSSProperties
         }

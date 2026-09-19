@@ -2,15 +2,18 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
+import { ArrowRight } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { AMBER_BUTTON } from '@/components/auth/auth-card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { cn } from '@/lib/utils'
 
 export function SignUpForm() {
   const router = useRouter()
 
+  const [fullName, setFullName] = useState('')
   const [username, setUsername] = useState('')
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
@@ -18,27 +21,34 @@ export function SignUpForm() {
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
+    setNotice(null)
 
+    if (fullName.trim().length < 2) {
+      setError('Ingresa tu nombre completo.')
+      return
+    }
     if (username.trim().length < 3) {
-      setError('Username must be at least 3 characters.')
+      setError('El usuario debe tener al menos 3 caracteres.')
       return
     }
     if (password.length < 8) {
-      setError('Password must be at least 8 characters.')
+      setError('La contraseña debe tener al menos 8 caracteres.')
       return
     }
 
     setLoading(true)
 
-    // 1) Create a pre-confirmed account on the server (no email link needed).
+    // 1) Create the account + profile row on the server (username/phone/name).
     const res = await fetch('/api/auth/signup', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        fullName: fullName.trim(),
         username: username.trim(),
         email: email.trim(),
         phone: phone.trim(),
@@ -50,11 +60,15 @@ export function SignUpForm() {
 
     if (!res.ok) {
       setLoading(false)
-      setError(payload.error ?? 'Could not create your account. Please try again.')
+      if (payload.needsConfirmation) {
+        setNotice('Revisa tu correo para confirmar tu cuenta.')
+        return
+      }
+      setError(payload.error ?? 'No pudimos crear tu cuenta. Inténtalo de nuevo.')
       return
     }
 
-    // 2) Sign in immediately so a session exists.
+    // 2) Sign in immediately so a session exists, then enter the platform.
     const supabase = createClient()
     const { error: signInError } = await supabase.auth.signInWithPassword({
       email: email.trim(),
@@ -64,20 +78,42 @@ export function SignUpForm() {
     setLoading(false)
 
     if (signInError) {
-      setError('Account created. Please log in to continue.')
-      setTimeout(() => router.push('/auth/login'), 1400)
+      setNotice('Revisa tu correo para confirmar tu cuenta.')
       return
     }
 
-    // 3) Enter the platform.
-    router.push('/')
-    router.refresh()
+    // Hard navigation (not router.push): a client-side transition can stall
+    // inside the v0 preview's cross-site iframe. A full load is iframe-proof.
+    window.location.assign('/dashboard')
+  }
+
+  if (notice) {
+    return (
+      <div className="flex flex-col gap-3 text-center">
+        <p className="text-sm leading-relaxed text-muted-foreground text-pretty">
+          {notice}
+        </p>
+      </div>
+    )
   }
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <div className="flex flex-col gap-2">
-        <Label htmlFor="username">Username</Label>
+        <Label htmlFor="fullName">Nombre completo</Label>
+        <Input
+          id="fullName"
+          autoComplete="name"
+          placeholder="Juan Pérez"
+          value={fullName}
+          onChange={(e) => setFullName(e.target.value)}
+          required
+          className="h-11"
+        />
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="username">Usuario</Label>
         <Input
           id="username"
           autoComplete="username"
@@ -95,7 +131,7 @@ export function SignUpForm() {
           id="email"
           type="email"
           autoComplete="email"
-          placeholder="you@email.com"
+          placeholder="tu@correo.com"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
@@ -104,7 +140,7 @@ export function SignUpForm() {
       </div>
 
       <div className="flex flex-col gap-2">
-        <Label htmlFor="phone">Phone number</Label>
+        <Label htmlFor="phone">Número de teléfono</Label>
         <Input
           id="phone"
           type="tel"
@@ -115,18 +151,15 @@ export function SignUpForm() {
           required
           className="h-11"
         />
-        <p className="text-xs text-muted-foreground">
-          Saved to your GRIP profile.
-        </p>
       </div>
 
       <div className="flex flex-col gap-2">
-        <Label htmlFor="password">Password</Label>
+        <Label htmlFor="password">Contraseña</Label>
         <Input
           id="password"
           type="password"
           autoComplete="new-password"
-          placeholder="At least 8 characters"
+          placeholder="Al menos 8 caracteres"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
@@ -136,19 +169,14 @@ export function SignUpForm() {
 
       {error && <p className="text-sm text-destructive">{error}</p>}
 
-      <Button type="submit" disabled={loading} className="mt-2 h-11 w-full">
-        {loading ? 'Creating account...' : 'Create account & enter'}
+      <Button
+        type="submit"
+        disabled={loading}
+        className={cn('mt-1 h-11 w-full', AMBER_BUTTON)}
+      >
+        {loading ? 'Creando cuenta...' : 'Crear cuenta y entrar'}
+        {!loading && <ArrowRight className="ml-1 h-4 w-4" />}
       </Button>
-
-      <p className="text-center text-sm text-muted-foreground">
-        {'Already a member? '}
-        <Link
-          href="/auth/login"
-          className="text-foreground underline-offset-4 hover:underline"
-        >
-          Log in
-        </Link>
-      </p>
     </form>
   )
 }

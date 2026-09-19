@@ -2,19 +2,29 @@ import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 
 export async function POST(request: Request) {
-  let body: { username?: string; email?: string; phone?: string; password?: string }
+  let body: {
+    fullName?: string
+    username?: string
+    email?: string
+    phone?: string
+    password?: string
+  }
   try {
     body = await request.json()
   } catch {
     return NextResponse.json({ error: 'Invalid request.' }, { status: 400 })
   }
 
+  const fullName = (body.fullName ?? '').trim()
   const username = (body.username ?? '').trim()
   const email = (body.email ?? '').trim().toLowerCase()
   const phone = (body.phone ?? '').trim()
   const password = body.password ?? ''
 
   // Server-side validation
+  if (fullName.length < 2) {
+    return NextResponse.json({ error: 'Ingresa tu nombre completo.' }, { status: 400 })
+  }
   if (username.length < 3) {
     return NextResponse.json({ error: 'Username must be at least 3 characters.' }, { status: 400 })
   }
