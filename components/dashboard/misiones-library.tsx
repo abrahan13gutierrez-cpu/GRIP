@@ -25,8 +25,9 @@ const DRILL_NAMES: Record<string, string[]> = {
   Stances: [],
   Blocking: ["Blocking Aqua Bag", "Blocking w/ Stick", "Blocking Regular Glove"],
   Transfers: [],
-  Throwing: [],
-  Receiving: ["Resistance Band - Back", "Assistance Resistance - Front", "CB Boz - Wrist Band"],
+  Throwing: ["Front Toss Plyo", "Walk Back Plyo", "Forward Walk Plyo", "Circle Aquabag One Knee"],
+  // Los drills de Receiving se movieron al curso "Framing" (vive en la vista de Cursos).
+  Receiving: [],
   Mentalidad: [],
 }
 

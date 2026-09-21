@@ -13,6 +13,7 @@ import {
   Library,
   Lock,
   Bookmark,
+  Frame,
   type LucideIcon,
 } from "lucide-react"
 import { LessonPlayer, type Course } from "@/components/dashboard/lesson-player"
@@ -57,25 +58,43 @@ const COURSE_CONTENT: Record<string, Course> = {
         ],
       },
       { id: "transfers", title: "Transfers", lessons: [] },
-      { id: "throwing", title: "Throwing", lessons: [] },
       {
-        id: "receiving",
-        title: "Receiving",
+        id: "throwing",
+        title: "Throwing",
+        lessons: [
+          { id: "thr-1", title: "Front Toss Plyo", playbackId: "FhItn8r864c9pkMlhcf00qmlo01RrhZHHQfFWkjOqYWyU" },
+          { id: "thr-2", title: "Walk Back Plyo", playbackId: "8XluQaDkAQ4JUSrEa9zQ1oLJL9hDV3B4Ae22475WbpY" },
+          { id: "thr-3", title: "Forward Walk Plyo", playbackId: "olvb6oJ9Ln8nUBL01q7oN2NNsp00kKzZBrPJlRYkoWO01E" },
+          { id: "thr-4", title: "Circle Aquabag One Knee", playbackId: "M8gjtQcKwwJ5xJgZ9AfGaTPniuYj44dGl7gZUHsqpdo" },
+        ],
+      },
+      // Receiving quedó vacío: sus drills se movieron al módulo "Framing" (curso propio).
+      { id: "receiving", title: "Receiving", lessons: [] },
+      { id: "mentalidad", title: "Mentalidad", lessons: [] },
+    ],
+  },
+  // Framing: módulo propio con los drills de presentación/marco del guante.
+  framing: {
+    id: "framing",
+    title: "Framing",
+    modules: [
+      {
+        id: "framing-core",
+        title: "Framing",
         lessons: [
           {
-            id: "rcv-1",
+            id: "frm-1",
             title: "Resistance Band - Back",
             playbackId: "s8Curbhz4dIc301FUabuAvDUg4vb7Y01uUKacIs2qAKWc",
           },
           {
-            id: "rcv-2",
+            id: "frm-2",
             title: "Assistance Resistance - Front",
             playbackId: "AhXTBI17FXLfIsa7z59HkYhxejZLUfHjTC02WPFshVPI",
           },
-          { id: "rcv-3", title: "CB Boz - Wrist Band", playbackId: "5nex2D3t4Sofw4Ayrqcj1Bgelufxj7Z7yQ6rTPYiDnc" },
+          { id: "frm-3", title: "CB Boz - Wrist Band", playbackId: "5nex2D3t4Sofw4Ayrqcj1Bgelufxj7Z7yQ6rTPYiDnc" },
         ],
       },
-      { id: "mentalidad", title: "Mentalidad", lessons: [] },
     ],
   },
 }
@@ -122,6 +141,13 @@ const CARDS: CourseCard[] = [
     description: "Todas las habilidades adicionales, mini cursos y recursos que necesitarás durante el camino.",
     progress: 0,
     icon: Library,
+  },
+  {
+    id: "framing",
+    title: "Framing",
+    description: "Domina la presentación y el marco del guante para robar strikes.",
+    progress: 0,
+    icon: Frame,
   },
   {
     id: "daily-puzzle",
