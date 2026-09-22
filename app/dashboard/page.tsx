@@ -15,7 +15,7 @@ export default function DashboardPage() {
   const [view, setView] = useState<ViewId>("courses")
 
   return (
-    <div className="flex h-[100dvh] overflow-hidden bg-[#0a0e1a] text-[#e8ebf2]">
+    <div className="flex h-[100dvh] overflow-hidden bg-[#0B1120] text-[#F5F3EC]">
       {/* On mobile the icon bar is hidden inside the Chat view (opened via the header hamburger); it stays visible for every other view and on md+. */}
       <div className={`h-full shrink-0 ${view === "chat" ? "hidden md:block" : "block"}`}>
         <DashboardSidebar active={view} onSelect={setView} />

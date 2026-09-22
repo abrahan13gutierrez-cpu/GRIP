@@ -33,7 +33,7 @@ export function DashboardSidebar({
   return (
     <nav
       aria-label="Primary"
-      className="flex h-full w-[68px] shrink-0 flex-col items-center gap-1 border-r border-[#1f2740] bg-[#0b101f] py-4"
+      className="flex h-full w-[68px] shrink-0 flex-col items-center gap-1 border-r border-[#2A3552] bg-[#0B1120] py-4"
     >
       {NAV.map((item) => {
         const Icon = item.icon
@@ -50,15 +50,15 @@ export function DashboardSidebar({
             {isActive && (
               <motion.span
                 layoutId="active-pill"
-                className="absolute left-0 top-0.5 bottom-0.5 w-[3px] rounded-r-full bg-[#d4af37]"
+                className="absolute left-0 top-0.5 bottom-0.5 w-[3px] rounded-r-full bg-[#C9A227]"
                 transition={{ type: "spring", stiffness: 500, damping: 40 }}
               />
             )}
             <span
               className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-colors ${
                 isActive
-                  ? "bg-[#d4af37]/10 text-[#d4af37]"
-                  : "text-[#8790a6] group-hover:bg-white/5 group-hover:text-[#e8ebf2]"
+                  ? "bg-[#C9A227]/10 text-[#C9A227]"
+                  : "text-[#8A93A8] group-hover:bg-white/5 group-hover:text-[#F5F3EC]"
               }`}
             >
               <Icon className="h-5 w-5" strokeWidth={isActive ? 2.4 : 2} />
@@ -72,7 +72,7 @@ export function DashboardSidebar({
         {moreActive && (
           <motion.span
             layoutId="active-pill"
-            className="absolute left-0 top-0.5 bottom-0.5 w-[3px] rounded-r-full bg-[#d4af37]"
+            className="absolute left-0 top-0.5 bottom-0.5 w-[3px] rounded-r-full bg-[#C9A227]"
             transition={{ type: "spring", stiffness: 500, damping: 40 }}
           />
         )}
@@ -84,8 +84,8 @@ export function DashboardSidebar({
           title="Más"
           className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-colors ${
             moreOpen || moreActive
-              ? "bg-[#d4af37]/10 text-[#d4af37]"
-              : "text-[#8790a6] hover:bg-white/5 hover:text-[#e8ebf2]"
+              ? "bg-[#C9A227]/10 text-[#C9A227]"
+              : "text-[#8A93A8] hover:bg-white/5 hover:text-[#F5F3EC]"
           }`}
         >
           <MoreHorizontal className="h-5 w-5" strokeWidth={moreActive ? 2.4 : 2} />
@@ -107,7 +107,7 @@ export function DashboardSidebar({
                 animate={{ opacity: 1, x: 0, scale: 1 }}
                 exit={{ opacity: 0, x: -6, scale: 0.96 }}
                 transition={{ duration: 0.15, ease: "easeOut" }}
-                className="absolute bottom-0 left-full z-50 ml-2 w-44 rounded-xl border border-[#1f2740] bg-[#111726] p-1.5 shadow-xl shadow-black/40"
+                className="absolute bottom-0 left-full z-50 ml-2 w-44 rounded-xl border border-[#2A3552] bg-[#131C33] p-1.5 shadow-xl shadow-black/40"
               >
                 {MORE_ITEMS.map((item) => {
                   const Icon = item.icon
@@ -122,8 +122,8 @@ export function DashboardSidebar({
                       }}
                       className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm transition-colors ${
                         isActive
-                          ? "bg-[#d4af37]/10 text-[#d4af37]"
-                          : "text-[#c7cdd6] hover:bg-white/5 hover:text-[#e8ebf2]"
+                          ? "bg-[#C9A227]/10 text-[#C9A227]"
+                          : "text-[#c7cdd6] hover:bg-white/5 hover:text-[#F5F3EC]"
                       }`}
                     >
                       <Icon className="h-4 w-4 shrink-0" />
