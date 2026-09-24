@@ -4,6 +4,7 @@ export type Channel = {
   name: string
   description: string | null
   category: string
+  emoji: string | null
   is_broadcast: boolean
   sort_order: number
 }

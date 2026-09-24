@@ -7,6 +7,7 @@ import { CoursesView } from "@/components/dashboard/courses-view"
 import { MisionesLibrary } from "@/components/dashboard/misiones-library"
 import { FeedbackView } from "@/components/dashboard/feedback-view"
 import { ChatView } from "@/components/dashboard/chat-view"
+import { ProfileView } from "@/components/dashboard/profile-view"
 import { PlaceholderView } from "@/components/dashboard/placeholder-view"
 import type { ViewId } from "@/lib/dashboard/data"
 
@@ -14,7 +15,7 @@ export default function DashboardPage() {
   const [view, setView] = useState<ViewId>("courses")
 
   return (
-    <div className="flex h-[100dvh] overflow-hidden bg-[#0a0e1a] text-[#e8ebf2]">
+    <div className="flex h-[100dvh] overflow-hidden bg-[#0B1120] text-[#F5F3EC]">
       {/* On mobile the icon bar is hidden inside the Chat view (opened via the header hamburger); it stays visible for every other view and on md+. */}
       <div className={`h-full shrink-0 ${view === "chat" ? "hidden md:block" : "block"}`}>
         <DashboardSidebar active={view} onSelect={setView} />
@@ -47,9 +48,16 @@ export default function DashboardPage() {
               </div>
             )}
             {view === "chat" && <ChatView activeView={view} onNavigate={setView} />}
-            {view !== "courses" && view !== "misiones" && view !== "feedback" && view !== "chat" && (
-              <PlaceholderView view={view} />
+            {view === "profile" && (
+              <div className="h-full overflow-y-auto">
+                <ProfileView />
+              </div>
             )}
+            {view !== "courses" &&
+              view !== "misiones" &&
+              view !== "feedback" &&
+              view !== "chat" &&
+              view !== "profile" && <PlaceholderView view={view} />}
           </motion.div>
         </AnimatePresence>
       </main>

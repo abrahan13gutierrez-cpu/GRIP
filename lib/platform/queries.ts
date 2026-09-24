@@ -5,7 +5,7 @@ export async function getChannels(): Promise<Channel[]> {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from("channels")
-    .select("id, slug, name, description, category, is_broadcast, sort_order")
+    .select("id, slug, name, description, category, emoji, is_broadcast, sort_order")
     .order("sort_order", { ascending: true })
 
   if (error) {
@@ -19,7 +19,7 @@ export async function getChannelBySlug(slug: string): Promise<Channel | null> {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from("channels")
-    .select("id, slug, name, description, category, is_broadcast, sort_order")
+    .select("id, slug, name, description, category, emoji, is_broadcast, sort_order")
     .eq("slug", slug)
     .maybeSingle()
 
