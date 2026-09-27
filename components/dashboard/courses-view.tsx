@@ -1,6 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
+import { useRouter } from "next/navigation"
 import useSWR from "swr"
 import {
   Rocket,
@@ -17,6 +18,8 @@ import {
 } from "lucide-react"
 import { LessonPlayer, type Course } from "@/components/dashboard/lesson-player"
 import { certNo, gradeStatus, toGrade } from "@/lib/dashboard/scouting"
+import { FRAMING_UNITS, unitHref } from "@/lib/framing/curriculum"
+import { framingCourseProgressPct, resumeUnit, type FramingProgressMap } from "@/lib/framing/progress"
 
 // Placeholder de Mux hasta subir el video real de cada lección (reemplazar por su playbackId).
 const PLACEHOLDER_PLAYBACK = "hDf4L01SaB1w4y4EjcgzTD6BjiNA4Ns9c7bWeYxwlccU"
@@ -189,6 +192,7 @@ function isUnlocked(c: CourseCard) {
 }
 
 export function CoursesView() {
+  const router = useRouter()
   const [tab, setTab] = useState<TabId>("categorias")
   const [lesson, setLesson] = useState<Course | null>(null)
 
@@ -198,8 +202,17 @@ export function CoursesView() {
   )
   const saved = progressData?.progress ?? {}
 
+  // Framing usa su propio ciclo real (Video → Quiz → Práctica → Feedback) persistido
+  // en protocol_progress, en vez del progreso genérico por curso.
+  const { data: framingData } = useSWR<{ progress: FramingProgressMap }>("/api/framing/progress", fetcher)
+  const framingProgress = framingData?.progress ?? {}
+  const framingPct = FRAMING_UNITS.length ? framingCourseProgressPct(framingProgress) : 0
+
   // El progreso persistido (BD) tiene prioridad sobre el valor estático de la tarjeta.
-  const cards = useMemo(() => CARDS.map((c) => ({ ...c, progress: saved[c.id] ?? c.progress })), [saved])
+  const cards = useMemo(
+    () => CARDS.map((c) => ({ ...c, progress: c.id === "framing" ? framingPct : saved[c.id] ?? c.progress })),
+    [saved, framingPct],
+  )
 
   async function saveProgress(courseId: string, progress: number) {
     await mutateProgress(
@@ -216,6 +229,10 @@ export function CoursesView() {
   }
 
   function startCourse(card: CourseCard) {
+    if (card.id === "framing") {
+      router.push(unitHref(resumeUnit(framingProgress)))
+      return
+    }
     if (COURSE_CONTENT[card.id]) setLesson(COURSE_CONTENT[card.id])
     // Registrar/persistir que el curso quedó en progreso (si aún no está avanzado).
     const current = saved[card.id] ?? card.progress
