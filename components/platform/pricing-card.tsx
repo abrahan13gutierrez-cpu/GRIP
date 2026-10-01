@@ -4,13 +4,25 @@ import { Check } from "lucide-react"
 import type { Plan } from "@/lib/platform/plans"
 import { cn } from "@/lib/utils"
 
-export function PricingCard({ plan }: { plan: Plan }) {
+export function PricingCard({
+  plan,
+  userId,
+  userEmail,
+}: {
+  plan: Plan
+  userId: string
+  userEmail: string
+}) {
   function goToCheckout() {
+    const url = new URL(plan.checkoutUrl)
+    url.searchParams.set("client_reference_id", userId)
+    url.searchParams.set("prefilled_email", userEmail)
+
     // If embedded in an iframe (e.g. the v0 preview), open in a new tab.
     if (typeof window !== "undefined" && window.self !== window.top) {
-      window.open(plan.checkoutUrl, "_blank", "noopener,noreferrer")
+      window.open(url.toString(), "_blank", "noopener,noreferrer")
     } else {
-      window.location.href = plan.checkoutUrl
+      window.location.href = url.toString()
     }
   }
 

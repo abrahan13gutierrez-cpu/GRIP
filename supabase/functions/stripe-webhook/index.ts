@@ -31,43 +31,48 @@ Deno.serve(async (req) => {
 
   if (event.type === "checkout.session.completed") {
     const session = event.data.object as Stripe.Checkout.Session;
-    const email = session.customer_details?.email;
 
-    if (!email) {
-      console.error("No email found in checkout session");
-      return new Response("No email found", { status: 400 });
+    const clientRefId = session.client_reference_id;
+    let userId: string | null = clientRefId;
+
+    if (!userId) {
+      const email = session.customer_details?.email;
+      if (!email) {
+        console.error("No email found in checkout session");
+        return new Response("No identifier found", { status: 400 });
+      }
+
+      const { data: userList, error: userError } =
+        await supabase.auth.admin.listUsers();
+
+      if (userError) {
+        console.error("Error listing users:", userError);
+        return new Response("User lookup failed", { status: 500 });
+      }
+
+      const user = userList.users.find(
+        (u) => u.email?.toLowerCase() === email.toLowerCase()
+      );
+
+      if (!user) {
+        console.error(`No user found with email: ${email}`);
+        return new Response("User not found", { status: 404 });
+      }
+
+      userId = user.id;
     }
 
-    // Buscar el usuario en auth.users por email
-    const { data: userList, error: userError } =
-      await supabase.auth.admin.listUsers();
-
-    if (userError) {
-      console.error("Error listing users:", userError);
-      return new Response("User lookup failed", { status: 500 });
-    }
-
-    const user = userList.users.find(
-      (u) => u.email?.toLowerCase() === email.toLowerCase()
-    );
-
-    if (!user) {
-      console.error(`No user found with email: ${email}`);
-      return new Response("User not found", { status: 404 });
-    }
-
-    // Activar en perfiles usando el id del usuario
     const { error: updateError } = await supabase
       .from("perfiles")
       .update({ activo: true })
-      .eq("id", user.id);
+      .eq("id", userId);
 
     if (updateError) {
       console.error("Error updating perfiles:", updateError);
       return new Response("Database update failed", { status: 500 });
     }
 
-    console.log(`Activated user: ${email} (${user.id})`);
+    console.log(`Activated user: ${userId}`);
   }
 
   return new Response(JSON.stringify({ received: true }), {
