@@ -16,7 +16,6 @@ import {
   type LucideIcon,
 } from "lucide-react"
 import { LessonPlayer, type Course } from "@/components/dashboard/lesson-player"
-import { certNo, gradeStatus, toGrade } from "@/lib/dashboard/scouting"
 
 // Placeholder de Mux hasta subir el video real de cada lección (reemplazar por su playbackId).
 const PLACEHOLDER_PLAYBACK = "hDf4L01SaB1w4y4EjcgzTD6BjiNA4Ns9c7bWeYxwlccU"
@@ -234,16 +233,7 @@ export function CoursesView() {
 
   return (
     <div className="h-full overflow-y-auto bg-[#0B1120] px-4 py-5 md:px-6">
-      {/* Membrete del dosier */}
-      <div className="flex items-center justify-between border-b border-[#2A3552] pb-3">
-        <div className="flex items-baseline gap-2">
-          <span className="text-sm font-bold tracking-wide text-[#F5F3EC]">GRIP</span>
-          <span className="text-[10px] font-medium uppercase tracking-[2px] text-[#8A93A8]">Dosier de desarrollo</span>
-        </div>
-        <span className="font-serif text-[10px] uppercase tracking-[2px] text-[#C9A227]">Prospecto GR-0248</span>
-      </div>
-
-      <header className="mb-5 mt-4">
+      <header className="mb-5">
         <h1 className="text-2xl font-bold tracking-tight text-[#F5F3EC]">Cursos</h1>
         <p className="mt-1 text-sm text-[#8A93A8]">Tu recorrido completo de catcher, paso a paso.</p>
       </header>
@@ -284,7 +274,7 @@ export function CoursesView() {
       ) : (
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
           {visible.map((c) => (
-            <CertificateCard key={c.id} card={c} index={CARDS.findIndex((x) => x.id === c.id)} onStart={() => startCourse(c)} />
+            <CourseCardItem key={c.id} card={c} onStart={() => startCourse(c)} />
           ))}
         </div>
       )}
@@ -292,10 +282,9 @@ export function CoursesView() {
   )
 }
 
-function CertificateCard({ card, index, onStart }: { card: CourseCard; index: number; onStart: () => void }) {
+function CourseCardItem({ card, onStart }: { card: CourseCard; onStart: () => void }) {
   const unlocked = isUnlocked(card)
   const done = card.progress >= 100
-  const grade = toGrade(card.progress, unlocked)
   const Icon = card.icon
 
   return (
@@ -304,32 +293,22 @@ function CertificateCard({ card, index, onStart }: { card: CourseCard; index: nu
         unlocked ? "border-[#2A3552] hover:border-[#C9A227]" : "border-[#2A3552] opacity-55"
       }`}
     >
-      {/* Barra superior: número de certificado + estado */}
-      <div className="flex items-center justify-between border-b border-[#2A3552] px-4 py-2.5">
-        <span className="font-serif text-[10px] tracking-[1.5px] text-[#8A93A8]">CERT #{certNo(index)}</span>
-        <span
-          className={`text-[9px] font-semibold uppercase tracking-[1.5px] ${
-            grade.graded ? "text-[#C9A227]" : "text-[#5C6580]"
-          }`}
-        >
-          {gradeStatus(grade)}
-        </span>
-      </div>
-
       {/* Cuerpo */}
-      <div className="flex flex-1 flex-col p-4">
+      <div className="flex flex-1 flex-col p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="flex h-11 w-11 shrink-0 items-center justify-center border border-[#2A3552]">
             <Icon className="h-5 w-5 text-[#8A93A8]" strokeWidth={1.5} />
           </div>
-          <span className="font-serif text-[40px] leading-none text-[#F5F3EC]">{grade.graded ? grade.value : "—"}</span>
+          {card.progress > 0 && (
+            <span className="text-xs font-semibold text-[#C9A227]">{card.progress}%</span>
+          )}
         </div>
 
         <h3 className="mt-4 text-[15px] font-semibold leading-snug text-balance text-[#F5F3EC]">{card.title}</h3>
         {card.description && <p className="mt-1.5 text-[13px] leading-relaxed text-[#8A93A8]">{card.description}</p>}
 
         {/* Progreso + acción, anclados al fondo */}
-        <div className="mt-auto pt-4">
+        <div className="mt-auto pt-5">
           <div className="h-[5px] w-full bg-[#2A3552]">
             <div className="h-full bg-[#C9A227] transition-all" style={{ width: `${card.progress}%` }} />
           </div>
