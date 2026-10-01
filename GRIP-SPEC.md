@@ -19,6 +19,7 @@ La comunidad vive en un chat estilo Discord. Todo está pensado primero para cel
 ## Etapas
 
 - **Etapa 1 (ahora):** prueba con un solo usuario, el hermano de G. Meta: que entre, vea los drills, suba un clip en #get-feedback y lea la respuesta escrita de G.
+  - Durante la Etapa 1 el acceso está abierto: no se bloquea por pago y el enlace de registro se mantiene privado. El bloqueo por membresía se construye antes de la Etapa 2.
 - **Etapa 2:** si la prueba funciona, el progreso y los resultados de su hermano traen a otros catchers de su academia.
 - **Antes de abrir la puerta a más usuarios** (aparcado: durante la Etapa 1 no se trabaja en esto, solo queda anotado):
   - Permisos por columna en `profiles`: hoy cada usuario puede editar su propio `activo`, `role` y `nivel`. Restringir también las inserciones en `videos`.
