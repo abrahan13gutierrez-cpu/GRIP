@@ -37,7 +37,7 @@ const COURSE_CONTENT: Record<string, Course> = {
     ],
   },
   // Bóveda del conocimiento: un módulo por área/skill (orden fijo). Los módulos sin
-  // video real quedan vacíos y muestran "Próximamente" en el reproductor de lección.
+  // drills quedan vacíos aquí y se ocultan al abrir el curso (ver withDrillsOnly).
   boveda: {
     id: "boveda",
     title: "Bóveda del conocimiento",
@@ -167,6 +167,14 @@ const CARDS: CourseCard[] = [
   },
 ]
 
+// v1: solo se muestran las colecciones de drills. El resto de tarjetas queda oculto, no borrado.
+const V1_VISIBLE_CARDS = ["boveda", "framing"]
+
+// v1: oculta los módulos que todavía no tienen drills (p. ej. Stances, Transfers), sin borrarlos de COURSE_CONTENT.
+function withDrillsOnly(course: Course): Course {
+  return { ...course, modules: course.modules.filter((m) => m.lessons.length > 0) }
+}
+
 const TABS = [
   { id: "categorias", label: "Categorías" },
   { id: "en-curso", label: "En curso" },
@@ -191,7 +199,11 @@ export function CoursesView() {
   const saved = progressData?.progress ?? {}
 
   // El progreso persistido (BD) tiene prioridad sobre el valor estático de la tarjeta.
-  const cards = useMemo(() => CARDS.map((c) => ({ ...c, progress: saved[c.id] ?? c.progress })), [saved])
+  const cards = useMemo(
+    () =>
+      CARDS.filter((c) => V1_VISIBLE_CARDS.includes(c.id)).map((c) => ({ ...c, progress: saved[c.id] ?? c.progress })),
+    [saved],
+  )
 
   async function saveProgress(courseId: string, progress: number) {
     await mutateProgress(
@@ -208,7 +220,7 @@ export function CoursesView() {
   }
 
   function startCourse(card: CourseCard) {
-    if (COURSE_CONTENT[card.id]) setLesson(COURSE_CONTENT[card.id])
+    if (COURSE_CONTENT[card.id]) setLesson(withDrillsOnly(COURSE_CONTENT[card.id]))
     // Registrar/persistir que el curso quedó en progreso (si aún no está avanzado).
     const current = saved[card.id] ?? card.progress
     if (current < 100 && current < 5) void saveProgress(card.id, Math.max(current, 5))
