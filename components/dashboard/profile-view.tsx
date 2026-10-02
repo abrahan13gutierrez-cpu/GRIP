@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import useSWR from "swr"
-import { Settings, Zap, Flame, Trophy, Video, Target, Check, Lock } from "lucide-react"
+import { Settings } from "lucide-react"
 import { AccountSettings } from "@/components/dashboard/account-settings"
 
 const OSWALD = "font-[family-name:var(--font-oswald)]"
@@ -15,30 +15,10 @@ export type ProfileData = {
     phone: string | null
     phoneVerified: boolean
     avatarUrl: string | null
-    nivel: string
-    powerPoints: number
-    loginStreak: number
     bio: string | null
     createdAt: string | null
   }
-  stats: {
-    protocolDone: number
-    protocolTotal: number
-    protocolPct: number
-    missionsDone: number
-    videosWatched: number
-    nextLevel: string | null
-  }
-  journey: { key: string; name: string; tag: string; status: "done" | "current" | "locked"; completedAt: string | null }[]
 }
-
-type Tab = "info" | "journey" | "stats"
-
-const TABS: { id: Tab; label: string }[] = [
-  { id: "info", label: "Información" },
-  { id: "journey", label: "Mi Recorrido" },
-  { id: "stats", label: "Estadísticas" },
-]
 
 function initials(name: string) {
   return name

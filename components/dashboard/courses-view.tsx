@@ -98,13 +98,6 @@ const COURSE_CONTENT: Record<string, Course> = {
   },
 }
 
-/**
- * GRIP — Cursos, presentado como dosier de scouting.
- * Cada curso es una "tarjeta-certificado" calificada en la escala 20-80 (ver
- * lib/dashboard/scouting). Paleta: base #0B1120, superficie #131C33,
- * borde #2A3552 (dorado #C9A227 en activo/hover). Números en serif.
- */
-
 const fetcher = (url: string) => fetch(url).then((r) => r.json())
 
 type CourseCard = {
@@ -226,7 +219,7 @@ export function CoursesView() {
     return cards
   }, [tab, cards])
 
-  // Vista de lección: ficha de prospecto (reproductor + progresión + veredicto).
+  // Vista de lección: reproductor de video + lista de lecciones + progreso del curso.
   if (lesson) {
     return <LessonPlayer course={lesson} onBack={() => setLesson(null)} />
   }

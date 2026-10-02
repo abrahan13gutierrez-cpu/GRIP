@@ -33,8 +33,6 @@ import {
   Loader2,
 } from "lucide-react"
 import { DashboardSidebar } from "@/components/dashboard/dashboard-sidebar"
-import { LiveCallModal } from "@/components/daily/live-call-modal"
-import { useLiveCall } from "@/components/daily/use-live-call"
 import { createClient } from "@/lib/supabase/client"
 import type { ViewId } from "@/lib/dashboard/data"
 
@@ -1264,7 +1262,6 @@ export function ChatView({
   const [replyingTo, setReplyingTo] = useState<DisplayMsg | null>(null)
   const [sending, setSending] = useState(false)
   const [panel, setPanel] = useState<"none" | "notifications" | "saved" | "profile">("none")
-  const { roomUrl, closeCall } = useLiveCall()
 
   // Cliente Supabase del navegador: dentro del iframe de preview es el único que
   // conserva la sesión (las cookies no llegan a las rutas de servidor), por eso
@@ -1595,8 +1592,6 @@ export function ChatView({
       </AnimatePresence>
 
       {searchOpen && <GlobalSearchModal onClose={() => setSearchOpen(false)} onSelectChannel={selectChannel} />}
-
-      {roomUrl && <LiveCallModal roomUrl={roomUrl} onClose={closeCall} />}
     </div>
   )
 }
