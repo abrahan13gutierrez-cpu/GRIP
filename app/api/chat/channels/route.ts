@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { createClient as createAdminClient } from "@supabase/supabase-js"
+import { V1_CHANNEL_SLUGS } from "@/lib/chat/v1-channels"
 
 // La lista de canales es estructura compartida (no datos privados por usuario).
 // La leemos con la service-role key en el servidor para que el sidebar siempre
@@ -21,6 +22,7 @@ export async function GET() {
   const { data, error } = await admin
     .from("channels")
     .select("id, slug, name, description, category, emoji, is_broadcast, sort_order")
+    .in("slug", V1_CHANNEL_SLUGS)
     .order("sort_order", { ascending: true })
 
   if (error) {

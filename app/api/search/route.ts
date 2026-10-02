@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { COURSES } from "@/lib/dashboard/data"
+import { V1_CHANNEL_SLUGS } from "@/lib/chat/v1-channels"
 
 // Drills con video real (espejo de misiones-library). Búsqueda de la Bóveda.
 const DRILLS = [
@@ -33,7 +34,12 @@ export async function GET(request: Request) {
   const admin = createAdminClient()
   if (admin) {
     const [chRes, peRes] = await Promise.all([
-      admin.from("channels").select("id, name, slug, emoji").ilike("name", `%${q}%`).limit(8),
+      admin
+        .from("channels")
+        .select("id, name, slug, emoji")
+        .in("slug", V1_CHANNEL_SLUGS)
+        .ilike("name", `%${q}%`)
+        .limit(8),
       admin
         .from("profiles")
         .select("id, username, display_name, full_name, avatar_url")
