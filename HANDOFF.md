@@ -83,3 +83,7 @@ Los 10 drills de `videos`:
 - El `proxy.ts` de la raíz solo refresca la sesión: no protege rutas ni revisa pagos.
 - `components/daily/*` y `app/api/progress/courses` están marcados como "ocultar" pero algo que se queda todavía los importa. No borrarlos sin cambiar antes esos imports.
 - Seguridad, aparcada hasta antes de abrir a más usuarios (ver "Etapas" en `GRIP-SPEC.md`): las políticas de `profiles` dejan que cada usuario edite cualquiera de sus columnas (`activo`, `role`, `nivel`), crear y borrar su propia fila, y hay políticas duplicadas. En `videos`, cualquier usuario puede insertar con `kind` libre. El pago no se revisa en la base de datos y la reproducción de Mux es pública.
+
+## Local setup, verified on Oct 1
+
+Local login, signup and password reset work. Required: `SUPABASE_SERVICE_ROLE_KEY` in `.env.local` (variable name exactly as read by `lib/supabase/admin.ts`; it must never start with `NEXT_PUBLIC_` and must never be committed), and `http://localhost:3000/**` in Supabase Authentication > URL Configuration > Redirect URLs. The Site URL stays at `https://catching-university.vercel.app`. Dev server must run on port 3000.
