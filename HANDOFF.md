@@ -18,15 +18,18 @@ Este archivo resume el estado del proyecto y las decisiones tomadas hasta ahora.
 ## Dónde estamos
 
 - Rama de trabajo: `cleanup-v1`. Verificar con `git log --oneline -5`; debe haber un commit aparte con el trabajo de Stripe del 26 de septiembre (nunca se había guardado) y el commit del paso 1.
-- **Paso 1, hecho y commiteado:** se borraron 13 archivos de código muerto (prototipo viejo de canales, formularios sin uso, `lib/supabase/proxy.ts`, etc.). `dashboard-sidebar.tsx` y `app/dashboard/page.tsx` quedaron mostrando solo Chat, Courses y Profile. El build pasó limpio.
-- **Paso 2, a medias:** una herramienta anterior se cortó por un error de cuota. Hay archivos modificados sin commit en `components/dashboard` (`lesson-player.tsx`, `profile-view.tsx` y otro `*-view.tsx`). No asumir qué está terminado: revisar `git diff` archivo por archivo.
-- El commit del paso 1 quedó firmado con un correo de ejemplo (`TU-CORREO-DE-GITHUB`). Pendiente y opcional: corregir `git config --global user.email` y, si la rama no está publicada, `git commit --amend --reset-author --no-edit`. Solo si no hay cambios preparados (`git diff --cached --stat` vacío).
+- **Paso 1, hecho y commiteado:** se borraron 13 archivos de código muerto (prototipo viejo de canales, formularios sin uso, `lib/supabase/proxy.ts`, etc.). `dashboard-sidebar.tsx` y `app/dashboard/page.tsx` quedaron mostrando solo Chat, Courses y Profile. El build pasa, pero no revisa tipos (ver "Problemas conocidos").
+- **Paso 2:** una herramienta anterior se cortó por un error de cuota. Lo que alcanzó a hacer ya está commiteado en `c026744` (`lesson-player.tsx`, `profile-view.tsx` y `courses-view.tsx`; el tercer archivo era `courses-view.tsx`). No quedaron cambios sin commit.
+- **Paso 2, continuación (2 de octubre):** `6e17f77` quitó el código muerto de llamada en vivo de `chat-view.tsx`, los restos sin uso de `profile-view.tsx` y comentarios viejos de `courses-view.tsx`. `fbaac05` oculta en Courses las tarjetas que no son drills (solo se ven Bóveda del conocimiento y Framing) y, dentro de cada curso, los módulos sin drills. No se borró código. En el perfil, G decidió dejar la bio, "Miembro desde", el botón de Ajustes y la insignia fija "Catcher".
+- El correo de ejemplo (`TU-CORREO-DE-GITHUB`) está en 3 commits (`64eadf2`, `c026744`, `92e0d48`) y la rama ya está publicada en GitHub. No hacer `--amend`: solo corregir `git config --global user.email` para los commits que vienen.
+- `next-env.d.ts` ya quedó commiteado en `c026744`. Lo genera Next.js y no hace daño.
+- El commit `6a69ab9` ("launch: single Founders plan with live Stripe link") menciona un plan Founders con un enlace de Stripe live. Pendiente de confirmar con G.
 
 ## Qué es el paso 2
 
 1. `lesson-player.tsx`: quitar los datos inventados. Son el encabezado "Ficha de prospecto", el "Grado general", las barras de habilidades fijas (Blocking 55, Framing 50, Pop Time 55) y el veredicto fijo de "Coach Reyes". Se queda el video, la lista de lecciones, el botón Next y el progreso del curso. Dejar de usar `toGrade()` y `gradeStatus()` en `lesson-player.tsx` y `courses-view.tsx`, pero no borrar `lib/dashboard/scouting.ts`.
 2. `profile-view.tsx`: esconder las pestañas My Journey y Stats, la barra de nivel y los power points. El perfil de v1 muestra solo foto, username, selector de idioma (si ya existe) y cerrar sesión. No tocar `/api/profile`.
-3. `chat-view.tsx`: quitar solo el botón de llamada en vivo y sus imports (`live-call-modal`, `use-live-call`). No borrar los archivos de `components/daily`.
+3. `chat-view.tsx`: quitar solo el botón de llamada en vivo y sus imports (`live-call-modal`, `use-live-call`). No borrar los archivos de `components/daily`. Nota: en el código no había botón; solo había código muerto (los imports, la llamada a `useLiveCall()` y el modal).
 4. Listar cada tarjeta de la pantalla Courses y decir si su video es real o de relleno.
 
 ## Decisiones tomadas después del spec
@@ -76,6 +79,7 @@ Los 10 drills de `videos`:
 - `courses-view.tsx` tiene Playback IDs fijos. Las lecciones "¿Qué es GRIP?" y "Cómo usar la plataforma" usan un ID de relleno, el mismo de Blocking Aqua Bag.
 - `lib/dashboard/data.ts` tiene arrays de datos inventados (`MESSAGES`, `MEMBERS`, `COURSES`). Se conservan solo los tipos.
 - `app/auth/error/page.tsx` y `app/auth/sign-up-success/page.tsx` usan `AuthShell`. Deben rediseñarse con `AuthScreen` + `AuthCard` + `MatrixRain`, como el resto del acceso.
+- `next.config.mjs` tiene `ignoreBuildErrors: true`, así que el build no revisa tipos. `tsc --noEmit` muestra 24 errores de TypeScript que ya existían: 10 en `components/auth/matrix-rain.tsx`, 9 en `supabase/functions/stripe-webhook/index.ts` y 1 en cada uno de `app/api/mux/webhook/route.ts`, `app/auth/error/page.tsx`, `app/auth/sign-up-success/page.tsx`, `app/membership/page.tsx` y `components/mux/mux-video-player.tsx`. No se arreglan ahora.
 - El `proxy.ts` de la raíz solo refresca la sesión: no protege rutas ni revisa pagos.
 - `components/daily/*` y `app/api/progress/courses` están marcados como "ocultar" pero algo que se queda todavía los importa. No borrarlos sin cambiar antes esos imports.
 - Seguridad, aparcada hasta antes de abrir a más usuarios (ver "Etapas" en `GRIP-SPEC.md`): las políticas de `profiles` dejan que cada usuario edite cualquiera de sus columnas (`activo`, `role`, `nivel`), crear y borrar su propia fila, y hay políticas duplicadas. En `videos`, cualquier usuario puede insertar con `kind` libre. El pago no se revisa en la base de datos y la reproducción de Mux es pública.
