@@ -952,6 +952,23 @@ const ETAPAS: EtapaSeed[] = [
   },
 ]
 
+// Videos de Receiving subidos a Mux, asignados por unidad (etapa/subnivel).
+// Las unidades sin entrada siguen visibles con "video pendiente".
+const UNIT_VIDEOS: Record<string, { playbackId: string; title: string }> = {
+  "positioning/neutral-receiving-window": {
+    playbackId: "s8Curbhz4dIc301FUabuAvDUg4vb7Y01uUKacIs2qAKWc",
+    title: "Resistance Band - Back",
+  },
+  "positioning/quiet-setup": {
+    playbackId: "AhXTBI17FXLfIsa7z59HkYhxejZLUfHjTC02WPFshVPI",
+    title: "Assistance Resistance - Front",
+  },
+  "positioning/target-alignment": {
+    playbackId: "5nex2D3t4Sofw4Ayrqcj1Bgelufxj7Z7yQ6rTPYiDnc",
+    title: "CB Boz - Wrist Band",
+  },
+}
+
 export const FRAMING_UNITS: FramingUnit[] = ETAPAS.flatMap((etapa, etapaIdx) =>
   etapa.subniveles.map((s, sIdx) => ({
     etapaSlug: etapa.slug,
@@ -961,8 +978,7 @@ export const FRAMING_UNITS: FramingUnit[] = ETAPAS.flatMap((etapa, etapaIdx) =>
     subnivelTitle: s.title,
     order: sIdx + 1,
     objetivo: s.objetivo,
-    // Playback IDs pendientes: se conectan cuando se comparta el mapa etapa/subnivel → playbackId.
-    video: { playbackId: null, title: s.title },
+    video: UNIT_VIDEOS[`${etapa.slug}/${s.slug}`] ?? { playbackId: null, title: s.title },
     quiz: s.quiz,
     practica: s.practica,
   })),
