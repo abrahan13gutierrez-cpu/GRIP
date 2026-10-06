@@ -32,7 +32,18 @@ const STEPS: { id: Step; label: string }[] = [
   { id: "feedback", label: "Feedback" },
 ]
 
-export function FramingCycle({ unit, initialStatus }: { unit: FramingUnit; initialStatus: UnitStatus }) {
+type CycleNav = {
+  /** When provided, the cycle runs embedded in the dashboard instead of as its own route. */
+  onExit?: () => void
+  onSelectUnit?: (unit: FramingUnit) => void
+}
+
+export function FramingCycle({
+  unit,
+  initialStatus,
+  onExit,
+  onSelectUnit,
+}: { unit: FramingUnit; initialStatus: UnitStatus } & CycleNav) {
   const [status, setStatus] = useState<UnitStatus>(initialStatus)
   const [videoWatched, setVideoWatched] = useState(status !== "video_pending")
   const [saving, setSaving] = useState(false)
@@ -79,17 +90,32 @@ export function FramingCycle({ unit, initialStatus }: { unit: FramingUnit; initi
   }
 
   return (
-    <div className="min-h-dvh bg-[#0B1120] px-4 py-5 md:px-8">
+    <div
+      className={
+        onExit ? "h-full overflow-y-auto bg-[#0B1120] px-4 py-5 md:px-6" : "min-h-dvh bg-[#0B1120] px-4 py-5 md:px-8"
+      }
+    >
       <div className="mx-auto max-w-5xl">
         {/* Membrete */}
         <div className="mb-5 flex items-center gap-3 border-b border-[#2A3552] pb-3">
-          <Link
-            href="/dashboard"
-            aria-label="Volver a Cursos"
-            className="flex h-9 w-9 shrink-0 items-center justify-center border border-[#2A3552] text-[#F5F3EC] transition-colors hover:border-[#C9A227]"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
+          {onExit ? (
+            <button
+              type="button"
+              onClick={onExit}
+              aria-label="Volver a Cursos"
+              className="flex h-9 w-9 shrink-0 items-center justify-center border border-[#2A3552] text-[#F5F3EC] transition-colors hover:border-[#C9A227]"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </button>
+          ) : (
+            <Link
+              href="/dashboard"
+              aria-label="Volver a Cursos"
+              className="flex h-9 w-9 shrink-0 items-center justify-center border border-[#2A3552] text-[#F5F3EC] transition-colors hover:border-[#C9A227]"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Link>
+          )}
           <div className="flex items-baseline gap-2">
             <span className="text-sm font-bold tracking-wide text-[#F5F3EC]">GRIP</span>
             <span className="hidden text-[10px] font-medium uppercase tracking-[2px] text-[#8A93A8] sm:inline">
@@ -143,7 +169,7 @@ export function FramingCycle({ unit, initialStatus }: { unit: FramingUnit; initi
         )}
         {step === "quiz" && <QuizStep unit={unit} saving={saving} failedOnce={status === "quiz_failed"} onResult={reportQuiz} />}
         {step === "practice" && <PracticeStep unit={unit} saving={saving} onSubmitted={submitPractice} />}
-        {step === "feedback" && <FeedbackStep unit={unit} next={next} />}
+        {step === "feedback" && <FeedbackStep unit={unit} next={next} onExit={onExit} onSelectUnit={onSelectUnit} />}
       </div>
     </div>
   )
@@ -319,7 +345,16 @@ function PracticeStep({ unit, saving, onSubmitted }: { unit: FramingUnit; saving
   )
 }
 
-function FeedbackStep({ unit, next }: { unit: FramingUnit; next: ReturnType<typeof nextUnit> }) {
+function FeedbackStep({
+  unit,
+  next,
+  onExit,
+  onSelectUnit,
+}: { unit: FramingUnit; next: ReturnType<typeof nextUnit> } & CycleNav) {
+  const secondaryClass =
+    "mt-3 block w-full text-center text-[10px] font-semibold uppercase tracking-[1.5px] text-[#8A93A8] hover:text-[#C9A227]"
+  const primaryClass =
+    "mt-2 flex w-full min-h-11 items-center justify-center gap-2 bg-[#C9A227] px-4 py-3 text-[11px] font-bold uppercase tracking-[1.5px] text-[#0B1120] transition-colors hover:bg-[#d9b943]"
   return (
     <StepCard>
       <h2 className="mb-1 text-[10px] font-semibold uppercase tracking-[2px] text-[#8A93A8]">Paso 4 · Feedback</h2>
@@ -334,21 +369,28 @@ function FeedbackStep({ unit, next }: { unit: FramingUnit; next: ReturnType<type
         <span className="mt-1 block text-[#c7cdd6]">{unit.practica.criterio}</span>
       </div>
 
-      <Link
-        href="/dashboard"
-        className="mt-3 block text-center text-[10px] font-semibold uppercase tracking-[1.5px] text-[#8A93A8] hover:text-[#C9A227]"
-      >
-        Ver #feedback en el chat
-      </Link>
+      {onExit ? (
+        <button type="button" onClick={onExit} className={secondaryClass}>
+          Volver a Cursos
+        </button>
+      ) : (
+        <Link href="/dashboard" className={secondaryClass}>
+          Ver #feedback en el chat
+        </Link>
+      )}
 
       {next ? (
-        <Link
-          href={unitHref(next)}
-          className="mt-2 flex w-full min-h-11 items-center justify-center gap-2 bg-[#C9A227] px-4 py-3 text-[11px] font-bold uppercase tracking-[1.5px] text-[#0B1120] transition-colors hover:bg-[#d9b943]"
-        >
-          Siguiente unidad
-          <ArrowRight className="h-4 w-4" />
-        </Link>
+        onSelectUnit ? (
+          <button type="button" onClick={() => onSelectUnit(next)} className={primaryClass}>
+            Siguiente unidad
+            <ArrowRight className="h-4 w-4" />
+          </button>
+        ) : (
+          <Link href={unitHref(next)} className={primaryClass}>
+            Siguiente unidad
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+        )
       ) : (
         <div className="mt-2 flex w-full min-h-11 items-center justify-center gap-2 border border-[#2A3552] px-4 py-3 text-[11px] font-bold uppercase tracking-[1.5px] text-[#F5F3EC]">
           <Lock className="h-3.5 w-3.5 text-[#C9A227]" />
