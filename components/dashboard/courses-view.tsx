@@ -51,12 +51,43 @@ const COURSE_CONTENT: Record<string, Course> = {
         id: "blocking",
         title: "Blocking",
         lessons: [
-          { id: "blk-1", title: "Blocking Aqua Bag", playbackId: "hDf4L01SaB1w4y4EjcgzTD6BjiNA4Ns9c7bWeYxwlccU" },
-          { id: "blk-2", title: "Blocking Stick", playbackId: "MZ2ANSYqKOJ934Mth8502TgxFH78DYa44rHC00XCicb3A" },
+          {
+            id: "blk-1",
+            title: "Blocking Aqua Bag",
+            playbackId: "hDf4L01SaB1w4y4EjcgzTD6BjiNA4Ns9c7bWeYxwlccU",
+            question: {
+              prompt: "Corredor en tercera, slider en la tierra a tu derecha. ¿Cuál es tu prioridad?",
+              options: [
+                "Atrapar la bola con el guante",
+                "Cortar el ángulo y mantener la bola enfrente",
+                "Pararte para tener mejor visión",
+              ],
+              correct: 1,
+              explanation:
+                "Con corredor en tercera no buscas atrapar: buscas que la bola muera frente a ti. Cortar el ángulo te deja el pecho hacia home.",
+            },
+          },
+          {
+            id: "blk-2",
+            title: "Blocking Stick",
+            playbackId: "MZ2ANSYqKOJ934Mth8502TgxFH78DYa44rHC00XCicb3A",
+            question: {
+              prompt: "Al bloquear, ¿dónde debe ir el guante?",
+              options: ["Abierto hacia la bola", "Tapando el hueco entre las rodillas", "Detrás de la espalda"],
+              correct: 1,
+              explanation: "El guante sella el hueco entre las piernas; el cuerpo hace el resto del trabajo.",
+            },
+          },
           {
             id: "blk-3",
             title: "Blocking Regular Glove",
             playbackId: "f00R3uJoRIK02bPXn3qmGMKHTpqMUxKjcVIx0200dRq8pMQ",
+            question: {
+              prompt: "¿Qué postura del torso amortigua mejor el rebote?",
+              options: ["Erguido y rígido", "Inclinado hacia adelante, hombros redondeados", "Inclinado hacia atrás"],
+              correct: 1,
+              explanation: "Hombros redondeados y torso hacia adelante absorben el impacto y dejan la bola cerca.",
+            },
           },
         ],
       },
@@ -89,13 +120,35 @@ const COURSE_CONTENT: Record<string, Course> = {
             id: "frm-1",
             title: "Resistance Band - Back",
             playbackId: "s8Curbhz4dIc301FUabuAvDUg4vb7Y01uUKacIs2qAKWc",
+            question: {
+              prompt: "Lanzamiento en la esquina baja. ¿Qué hace tu guante al recibir?",
+              options: ["Jala la bola hacia el centro", "Recibe firme y sostiene la posición", "Cae con la bola"],
+              correct: 1,
+              explanation: "Jalar la bola delata el lanzamiento. Recibir firme y sostener le vende el strike al umpire.",
+            },
           },
           {
             id: "frm-2",
             title: "Assistance Resistance - Front",
             playbackId: "AhXTBI17FXLfIsa7z59HkYhxejZLUfHjTC02WPFshVPI",
+            question: {
+              prompt: "¿Cuándo debe iniciar el movimiento del guante hacia la bola?",
+              options: ["Antes de que salga de la mano", "Tarde y corto, ya cerca de la zona", "Nunca, esperas inmóvil"],
+              correct: 1,
+              explanation: "Un movimiento tardío y corto mantiene el guante silencioso y preciso en la zona.",
+            },
           },
-          { id: "frm-3", title: "CB Boz - Wrist Band", playbackId: "5nex2D3t4Sofw4Ayrqcj1Bgelufxj7Z7yQ6rTPYiDnc" },
+          {
+            id: "frm-3",
+            title: "CB Boz - Wrist Band",
+            playbackId: "5nex2D3t4Sofw4Ayrqcj1Bgelufxj7Z7yQ6rTPYiDnc",
+            question: {
+              prompt: "¿Qué parte del cuerpo controla el giro del guante en el framing?",
+              options: ["El hombro", "La muñeca", "La cadera"],
+              correct: 1,
+              explanation: "La muñeca da el giro fino; el hombro y el brazo deben quedar quietos.",
+            },
+          },
         ],
       },
     ],
@@ -186,9 +239,20 @@ const TABS = [
 
 type TabId = (typeof TABS)[number]["id"]
 
-// Una tarjeta está disponible si tiene progreso o tiene contenido de lección definido.
-function isUnlocked(c: CourseCard) {
-  return c.progress > 0 || COURSE_CONTENT[c.id] != null
+// Todas las tarjetas están habilitadas. Las que aún no tienen lecciones abren el
+// reproductor con sus módulos marcados como "Próximamente".
+function isUnlocked(_c: CourseCard) {
+  return true
+}
+
+function courseFor(card: CourseCard): Course {
+  return (
+    COURSE_CONTENT[card.id] ?? {
+      id: card.id,
+      title: card.title,
+      modules: [{ id: `${card.id}-m1`, title: "Contenido", lessons: [] }],
+    }
+  )
 }
 
 export function CoursesView() {
@@ -233,10 +297,16 @@ export function CoursesView() {
       router.push(unitHref(resumeUnit(framingProgress)))
       return
     }
-    if (COURSE_CONTENT[card.id]) setLesson(COURSE_CONTENT[card.id])
+    setLesson(courseFor(card))
     // Registrar/persistir que el curso quedó en progreso (si aún no está avanzado).
     const current = saved[card.id] ?? card.progress
     if (current < 100 && current < 5) void saveProgress(card.id, Math.max(current, 5))
+  }
+
+  // El reproductor reporta el % real al completar lecciones; se refleja en la tarjeta.
+  function handleLessonProgress(courseId: string, pct: number) {
+    const current = saved[courseId] ?? 0
+    if (pct > current) void saveProgress(courseId, pct)
   }
 
   const visible = useMemo(() => {
@@ -246,7 +316,13 @@ export function CoursesView() {
 
   // Vista de lección: ficha de prospecto (reproductor + progresión + veredicto).
   if (lesson) {
-    return <LessonPlayer course={lesson} onBack={() => setLesson(null)} />
+    return (
+      <LessonPlayer
+        course={lesson}
+        onBack={() => setLesson(null)}
+        onProgress={(pct) => handleLessonProgress(lesson.id, pct)}
+      />
+    )
   }
 
   return (
