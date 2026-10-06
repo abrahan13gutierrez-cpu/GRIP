@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react"
 import { ArrowLeft, Bookmark, Check, ChevronRight, Link2, ListVideo, X } from "lucide-react"
 import { MuxVideoPlayer } from "@/components/mux/mux-video-player"
 import { LessonSidebar } from "@/components/dashboard/lesson-sidebar"
-import { QuizCard, type LessonQuestion } from "@/components/dashboard/quiz-card"
 
 /**
  * GRIP — Reproductor de lección (Vista 2).
@@ -18,7 +17,6 @@ export type Lesson = {
   playbackId: string
   completed?: boolean
   body?: string
-  question?: LessonQuestion
 }
 
 export type Module = {
@@ -52,7 +50,6 @@ export function LessonPlayer({
   const [completed, setCompleted] = useState<Set<string>>(
     () => new Set(flat.filter((f) => f.lesson.completed).map((f) => f.lesson.id)),
   )
-  const [answers, setAnswers] = useState<Record<string, number>>({})
   const [bookmarks, setBookmarks] = useState<Set<string>>(new Set())
   const [copied, setCopied] = useState(false)
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -75,12 +72,6 @@ export function LessonPlayer({
     const next = new Set(completed).add(id)
     setCompleted(next)
     onProgress?.(Math.round((next.size / flat.length) * 100))
-  }
-
-  function answer(index: number) {
-    if (!active) return
-    setAnswers((prev) => ({ ...prev, [active.lesson.id]: index }))
-    complete(active.lesson.id)
   }
 
   function select(id: string) {
@@ -201,14 +192,7 @@ export function LessonPlayer({
                     )}
                   </div>
 
-                  {active.lesson.question ? (
-                    <QuizCard
-                      question={active.lesson.question}
-                      selected={answers[active.lesson.id] ?? null}
-                      onAnswer={answer}
-                    />
-                  ) : (
-                    <button
+                  <button
                       onClick={() => complete(active.lesson.id)}
                       disabled={isDone}
                       className="flex min-h-11 items-center justify-center gap-2 self-start border border-[#2A3552] px-5 py-3 text-[11px] font-bold uppercase tracking-[1.5px] text-[#F5F3EC] transition-colors hover:border-[#C9A227] disabled:text-[#C9A227] disabled:hover:border-[#2A3552]"
@@ -216,7 +200,6 @@ export function LessonPlayer({
                       <Check className="h-4 w-4" />
                       {isDone ? "Lección completada" : "Marcar como completada"}
                     </button>
-                  )}
                 </div>
               </div>
             ) : (
