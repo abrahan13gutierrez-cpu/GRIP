@@ -42,13 +42,10 @@ const COURSE_CONTENT: Record<string, Course> = {
       },
     ],
   },
-  // Bóveda del conocimiento: un módulo por área/skill (orden fijo). Los módulos sin
-  // video real quedan vacíos y muestran "Próximamente" en el reproductor de lección.
   boveda: {
     id: "boveda",
     title: "Bóveda del conocimiento",
     modules: [
-      { id: "stances", title: "Stances", lessons: [] },
       {
         id: "blocking",
         title: "Blocking",
@@ -70,7 +67,6 @@ const COURSE_CONTENT: Record<string, Course> = {
           },
         ],
       },
-      { id: "transfers", title: "Transfers", lessons: [] },
       {
         id: "throwing",
         title: "Throwing",
@@ -81,9 +77,6 @@ const COURSE_CONTENT: Record<string, Course> = {
           { id: "thr-4", title: "Circle Aquabag One Knee", playbackId: "M8gjtQcKwwJ5xJgZ9AfGaTPniuYj44dGl7gZUHsqpdo" },
         ],
       },
-      // Receiving quedó vacío: sus drills se movieron al módulo "Framing" (curso propio).
-      { id: "receiving", title: "Receiving", lessons: [] },
-      { id: "mentalidad", title: "Mentalidad", lessons: [] },
     ],
   },
   // Framing: módulo propio con los drills de presentación/marco del guante.
