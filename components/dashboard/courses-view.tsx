@@ -19,9 +19,6 @@ import {
 import { LessonPlayer, type Course } from "@/components/dashboard/lesson-player"
 import { DailyPuzzleView } from "@/components/dashboard/daily-puzzle"
 import { certNo, gradeStatus, toGrade } from "@/lib/dashboard/scouting"
-import { FRAMING_UNITS, type FramingUnit } from "@/lib/framing/curriculum"
-import { framingCourseProgressPct, resumeUnit, statusOf, type FramingProgressMap } from "@/lib/framing/progress"
-import { FramingCycle } from "@/components/framing/framing-cycle"
 
 // Placeholder de Mux hasta subir el video real de cada lección (reemplazar por su playbackId).
 const PLACEHOLDER_PLAYBACK = "hDf4L01SaB1w4y4EjcgzTD6BjiNA4Ns9c7bWeYxwlccU"
@@ -213,7 +210,6 @@ export function CoursesView() {
   const [tab, setTab] = useState<TabId>("categorias")
   const [lesson, setLesson] = useState<Course | null>(null)
   const [puzzleOpen, setPuzzleOpen] = useState(false)
-  const [framingUnit, setFramingUnit] = useState<FramingUnit | null>(null)
 
   const { data: progressData, mutate: mutateProgress } = useSWR<{ progress: Record<string, number> }>(
     "/api/progress/courses",
@@ -221,16 +217,10 @@ export function CoursesView() {
   )
   const saved = progressData?.progress ?? {}
 
-  // Framing usa su propio ciclo real (Video → Quiz → Práctica → Feedback) persistido
-  // en protocol_progress, en vez del progreso genérico por curso.
-  const { data: framingData, mutate: mutateFraming } = useSWR<{ progress: FramingProgressMap }>("/api/framing/progress", fetcher)
-  const framingProgress = framingData?.progress ?? {}
-  const framingPct = FRAMING_UNITS.length ? framingCourseProgressPct(framingProgress) : 0
-
   // El progreso persistido (BD) tiene prioridad sobre el valor estático de la tarjeta.
   const cards = useMemo(
-    () => CARDS.map((c) => ({ ...c, progress: c.id === "framing" ? framingPct : saved[c.id] ?? c.progress })),
-    [saved, framingPct],
+    () => CARDS.map((c) => ({ ...c, progress: saved[c.id] ?? c.progress })),
+    [saved],
   )
 
   async function saveProgress(courseId: string, progress: number) {
@@ -248,10 +238,6 @@ export function CoursesView() {
   }
 
   function startCourse(card: CourseCard) {
-    if (card.id === "framing") {
-      setFramingUnit(resumeUnit(framingProgress))
-      return
-    }
     if (card.id === "daily-puzzle") {
       setPuzzleOpen(true)
       return
@@ -272,24 +258,6 @@ export function CoursesView() {
     if (tab === "en-curso") return cards.filter((c) => c.progress > 0 && c.progress < 100)
     return cards
   }, [tab, cards])
-
-  if (framingUnit) {
-    return (
-      <FramingCycle
-        key={`${framingUnit.etapaSlug}/${framingUnit.subnivelSlug}`}
-        unit={framingUnit}
-        initialStatus={statusOf(framingProgress, framingUnit.etapaSlug, framingUnit.subnivelSlug)}
-        onExit={() => {
-          setFramingUnit(null)
-          void mutateFraming()
-        }}
-        onSelectUnit={(next) => {
-          void mutateFraming()
-          setFramingUnit(next)
-        }}
-      />
-    )
-  }
 
   if (puzzleOpen) {
     return (
