@@ -178,16 +178,17 @@ export function LessonPlayer({
         {/* Columna principal */}
         <div className="flex min-w-0 flex-1 flex-col">
           <main className="min-h-0 flex-1 overflow-y-auto">
-            <div className="mx-auto flex max-w-3xl flex-col gap-5 px-4 py-6 md:px-8">
-              {active ? (
-                <>
-                  <MuxVideoPlayer
-                    key={active.lesson.id}
-                    playbackId={active.lesson.playbackId}
-                    title={active.lesson.title}
-                    className="w-full"
-                  />
+            {active ? (
+              // Una sola key por lección: al cambiar de lección se desmonta todo (video incluido).
+              <div key={active.lesson.id} className="flex flex-col">
+                <MuxVideoPlayer
+                  playbackId={active.lesson.playbackId}
+                  title={active.lesson.title}
+                  variant="bleed"
+                  className="w-full"
+                />
 
+                <div className="mx-auto flex w-full max-w-4xl flex-col gap-5 px-4 py-6 md:px-8">
                   <div>
                     <div className="text-[10px] font-semibold uppercase tracking-[2px] text-[#8A93A8]">
                       Módulo {active.moduleIndex + 1} · {active.module.title}
@@ -202,7 +203,6 @@ export function LessonPlayer({
 
                   {active.lesson.question ? (
                     <QuizCard
-                      key={active.lesson.id}
                       question={active.lesson.question}
                       selected={answers[active.lesson.id] ?? null}
                       onAnswer={answer}
@@ -217,16 +217,18 @@ export function LessonPlayer({
                       {isDone ? "Lección completada" : "Marcar como completada"}
                     </button>
                   )}
-                </>
-              ) : (
+                </div>
+              </div>
+            ) : (
+              <div className="mx-auto max-w-3xl px-4 py-6 md:px-8">
                 <div className="flex flex-col items-center justify-center border border-dashed border-[#2A3552] bg-[#131C33] px-6 py-20 text-center">
                   <p className="text-sm font-semibold text-[#F5F3EC]">Próximamente</p>
                   <p className="mt-1 max-w-xs text-xs leading-relaxed text-[#8A93A8]">
                     Las lecciones de este curso se publicarán pronto.
                   </p>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </main>
 
           {/* Barra inferior fija */}

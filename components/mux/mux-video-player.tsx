@@ -24,9 +24,11 @@ export function MuxVideoPlayer({
   accentColor = "#ffb020",
   className = "",
   onEnded,
-}: MuxVideoPlayerProps) {
+  variant = "framed",
+}: MuxVideoPlayerProps & { variant?: "framed" | "bleed" }) {
+  const frame = variant === "bleed" ? "bg-black" : "overflow-hidden rounded-lg border border-[#262b33] bg-black"
   return (
-    <div className={`overflow-hidden rounded-lg border border-[#262b33] bg-black ${className}`}>
+    <div className={`${frame} ${className}`}>
       <MuxPlayer
         playbackId={playbackId}
         streamType="on-demand"
