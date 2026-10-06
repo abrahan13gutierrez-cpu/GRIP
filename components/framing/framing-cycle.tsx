@@ -6,7 +6,7 @@ import { ArrowLeft, ArrowRight, Check, Circle, Lock, Target } from "lucide-react
 import { MuxVideoPlayer } from "@/components/mux/mux-video-player"
 import { MuxUploader } from "@/components/mux/mux-uploader"
 import type { FramingUnit } from "@/lib/framing/curriculum"
-import { nextUnit, unitHref } from "@/lib/framing/curriculum"
+import { RECEIVING_VIDEOS, nextUnit, unitHref } from "@/lib/framing/curriculum"
 import type { UnitStatus } from "@/lib/framing/progress"
 
 /**
@@ -202,11 +202,21 @@ function VideoStep({
   onEnded,
   onManual,
 }: { unit: FramingUnit; watched: boolean; saving: boolean; onEnded: () => void; onManual: () => void }) {
+  const [selectedId, setSelectedId] = useState<string | null>(
+    unit.video.playbackId ?? RECEIVING_VIDEOS[0]?.playbackId ?? null,
+  )
+  const selected = RECEIVING_VIDEOS.find((v) => v.playbackId === selectedId) ?? unit.video
+
   return (
     <StepCard>
       <h2 className="mb-3 text-[10px] font-semibold uppercase tracking-[2px] text-[#8A93A8]">Paso 1 · Video</h2>
-      {unit.video.playbackId ? (
-        <MuxVideoPlayer playbackId={unit.video.playbackId} title={unit.video.title} onEnded={onEnded} />
+      {selected.playbackId ? (
+        <MuxVideoPlayer
+          key={selected.playbackId}
+          playbackId={selected.playbackId}
+          title={selected.title}
+          onEnded={onEnded}
+        />
       ) : (
         <div className="flex aspect-video w-full flex-col items-center justify-center gap-2 border border-dashed border-[#2A3552] bg-[#0B1120] text-center">
           <p className="text-sm font-medium text-[#F5F3EC]">Video pendiente de conexión</p>
@@ -215,6 +225,33 @@ function VideoStep({
           </p>
         </div>
       )}
+      <div className="mt-4">
+        <h3 className="mb-2 text-[10px] font-semibold uppercase tracking-[2px] text-[#8A93A8]">
+          Videos de Receiving · {RECEIVING_VIDEOS.length}
+        </h3>
+        <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          {RECEIVING_VIDEOS.map((v, i) => {
+            const active = v.playbackId === selected.playbackId
+            return (
+              <li key={v.playbackId}>
+                <button
+                  type="button"
+                  onClick={() => setSelectedId(v.playbackId)}
+                  aria-pressed={active}
+                  className={`flex w-full min-h-11 items-center gap-3 border px-3 py-2 text-left text-sm transition-colors ${
+                    active
+                      ? "border-[#C9A227] bg-[#0B1120] text-[#F5F3EC]"
+                      : "border-[#2A3552] text-[#8A93A8] hover:border-[#C9A227] hover:text-[#F5F3EC]"
+                  }`}
+                >
+                  <span className={`font-serif text-xs ${active ? "text-[#C9A227]" : "text-[#5C6580]"}`}>{i + 1}</span>
+                  <span className="font-medium">{v.title}</span>
+                </button>
+              </li>
+            )
+          })}
+        </ul>
+      </div>
       <PrimaryButton onClick={onManual} disabled={saving || watched}>
         {watched ? "Video completado" : saving ? "Guardando…" : "Marcar video como visto"}
       </PrimaryButton>

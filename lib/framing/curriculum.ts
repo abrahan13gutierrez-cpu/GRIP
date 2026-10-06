@@ -952,21 +952,19 @@ const ETAPAS: EtapaSeed[] = [
   },
 ]
 
-// Videos de Receiving subidos a Mux, asignados por unidad (etapa/subnivel).
+export const RECEIVING_VIDEOS: { playbackId: string; title: string }[] = [
+  { playbackId: "s8Curbhz4dIc301FUabuAvDUg4vb7Y01uUKacIs2qAKWc", title: "Resistance Band - Back" },
+  { playbackId: "AhXTBI17FXLfIsa7z59HkYhxejZLUfHjTC02WPFshVPI", title: "Assistance Resistance - Front" },
+  { playbackId: "5nex2D3t4Sofw4Ayrqcj1Bgelufxj7Z7yQ6rTPYiDnc", title: "CB Boz - Wrist Band" },
+  { playbackId: "SHtC2y5Xwmb02ubipKjo6qExkCr8lr01ZA7mQm3eNkPE00", title: "Low Pitch Presentation" },
+]
+
 // Las unidades sin entrada siguen visibles con "video pendiente".
 const UNIT_VIDEOS: Record<string, { playbackId: string; title: string }> = {
-  "positioning/neutral-receiving-window": {
-    playbackId: "s8Curbhz4dIc301FUabuAvDUg4vb7Y01uUKacIs2qAKWc",
-    title: "Resistance Band - Back",
-  },
-  "positioning/quiet-setup": {
-    playbackId: "AhXTBI17FXLfIsa7z59HkYhxejZLUfHjTC02WPFshVPI",
-    title: "Assistance Resistance - Front",
-  },
-  "positioning/target-alignment": {
-    playbackId: "5nex2D3t4Sofw4Ayrqcj1Bgelufxj7Z7yQ6rTPYiDnc",
-    title: "CB Boz - Wrist Band",
-  },
+  "positioning/neutral-receiving-window": RECEIVING_VIDEOS[0],
+  "positioning/quiet-setup": RECEIVING_VIDEOS[1],
+  "positioning/target-alignment": RECEIVING_VIDEOS[2],
+  "positioning/low-pitch-presentation": RECEIVING_VIDEOS[3],
 }
 
 export const FRAMING_UNITS: FramingUnit[] = ETAPAS.flatMap((etapa, etapaIdx) =>
