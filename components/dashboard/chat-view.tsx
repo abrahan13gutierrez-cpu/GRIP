@@ -8,7 +8,6 @@ import {
   Smile,
   Paperclip,
   Send,
-  Bot,
   ChevronDown,
   ChevronRight,
   Menu,
@@ -189,6 +188,9 @@ function Avatar({
 
 /* --------------------------------- Top bar -------------------------------- */
 
+const TOPBAR_ICON_BTN =
+  "relative flex h-10 w-10 items-center justify-center rounded-lg text-[color:var(--hud-text)] transition-colors hover:bg-[color:var(--grip-tab)]"
+
 function TopBar({
   me,
   unread,
@@ -205,54 +207,38 @@ function TopBar({
   onToggleProfileMenu: () => void
 }) {
   return (
-    <header className="flex items-center gap-2 border-b border-[#1f2740] bg-[#0d1322] px-3 py-2">
-      <div className="flex items-center gap-2">
-        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#d4af37]/15 text-[#d4af37]">
-          <Bot className="h-4 w-4" />
-        </div>
-        <span className="hidden text-sm font-bold uppercase tracking-[0.14em] text-[#e8ebf2] xs:inline sm:inline">
-          GRIP
-        </span>
-      </div>
+    <header className="flex items-center justify-between gap-2 border-b border-[color:var(--grip-line)] bg-[color:var(--grip-bg)] px-3 py-3 sm:px-4 md:px-6">
+      <span className="truncate text-base font-semibold text-[color:var(--hud-text)] sm:text-lg md:text-2xl">Chat</span>
 
       <div className="ml-auto flex items-center gap-1">
-        <button
-          onClick={onOpenSearch}
-          aria-label="Buscar"
-          className="flex h-9 w-9 items-center justify-center rounded-lg text-[#8790a6] transition-colors hover:bg-white/5 hover:text-[#e8ebf2]"
-        >
-          <Search className="h-5 w-5" />
+        <button onClick={onOpenSearch} aria-label="Buscar" className={TOPBAR_ICON_BTN}>
+          <Search className="h-5 w-5" strokeWidth={1.75} />
         </button>
-        <button
-          onClick={onToggleSaved}
-          aria-label="Guardados"
-          className="flex h-9 w-9 items-center justify-center rounded-lg text-[#8790a6] transition-colors hover:bg-white/5 hover:text-[#e8ebf2]"
-        >
-          <Bookmark className="h-5 w-5" />
+        <button onClick={onToggleSaved} aria-label="Guardados" className={TOPBAR_ICON_BTN}>
+          <Bookmark className="h-5 w-5" strokeWidth={1.75} />
         </button>
-        <button
-          onClick={onToggleNotifications}
-          aria-label="Notificaciones"
-          className="relative flex h-9 w-9 items-center justify-center rounded-lg text-[#8790a6] transition-colors hover:bg-white/5 hover:text-[#e8ebf2]"
-        >
-          <Bell className="h-5 w-5" />
+        <button onClick={onToggleNotifications} aria-label="Notificaciones" className={TOPBAR_ICON_BTN}>
+          <Bell className="h-5 w-5" strokeWidth={1.75} />
           {unread > 0 && (
-            <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#ff5a5a] px-1 text-[10px] font-bold text-white">
+            <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[color:var(--hud-danger)] px-1 text-[10px] font-bold text-[color:var(--hud-text)]">
               {unread > 9 ? "9+" : unread}
             </span>
           )}
         </button>
 
+        <span className="mx-2 hidden h-6 w-px bg-[color:var(--grip-line)] md:block" />
         <button
           onClick={onToggleProfileMenu}
           aria-label="Menú de perfil"
-          className="ml-1 flex items-center gap-2 rounded-lg py-1 pl-1 pr-2 transition-colors hover:bg-white/5"
+          className="flex items-center gap-2 rounded-lg px-1 py-1 transition-colors hover:bg-[color:var(--grip-tab)] md:px-2"
         >
-          <Avatar url={me?.avatar_url ?? null} initials={initialsFrom(me?.name ?? "GR")} size="sm" />
-          <span className="hidden max-w-[120px] truncate text-sm font-medium text-[#e8ebf2] sm:inline">
-            {me?.username ?? me?.name ?? "Perfil"}
+          <span className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full border border-[color:var(--grip-gold-deep)] bg-[color:var(--grip-tab)]">
+            <Avatar url={me?.avatar_url ?? null} initials={initialsFrom(me?.name ?? "GR")} size="md" />
           </span>
-          <ChevronDown className="h-4 w-4 text-[#8790a6]" />
+          <span className="hidden max-w-[140px] truncate text-sm font-medium text-[color:var(--hud-text)] lg:block">
+            {me?.username ?? me?.name ?? "Mi perfil"}
+          </span>
+          <ChevronDown className="hidden h-4 w-4 text-[color:var(--hud-muted)] lg:block" aria-hidden="true" />
         </button>
       </div>
     </header>
@@ -1353,7 +1339,7 @@ export function ChatView({
     }))
   }, [channels])
 
-  // Carga los mensajes del canal vía RPC seguro (autor + reacciones agregadas,
+  // Carga los mensajes del canal v��a RPC seguro (autor + reacciones agregadas,
   // sin exponer columnas sensibles de profiles).
   const loadMessages = useCallback(
     async (chId: string) => {

@@ -27,6 +27,7 @@ import {
   CircleHelp,
   Search,
   MoreVertical,
+  RotateCcw,
   UserRound,
   type LucideIcon,
 } from "lucide-react"
@@ -227,6 +228,7 @@ export function CoursesView() {
           card={c}
           bookmarked={bookmarks.has(c.id)}
           onToggleBookmark={() => toggleBookmark(c.id)}
+          onReset={() => void saveProgress(c.id, 0)}
           onStart={() => startCourse(c)}
         />
       ))}
@@ -333,14 +335,21 @@ function CourseTile({
   card,
   bookmarked,
   onToggleBookmark,
+  onReset,
   onStart,
 }: {
   card: CourseCard
   bookmarked: boolean
   onToggleBookmark: () => void
+  onReset: () => void
   onStart: () => void
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
+  const [confirmReset, setConfirmReset] = useState(false)
+  const closeMenu = () => {
+    setMenuOpen(false)
+    setConfirmReset(false)
+  }
   const Icon = card.icon
   const progress = Math.round(card.progress)
   const cta = progress >= 100 ? "Repasar" : progress > 0 ? "Continuar" : "Iniciar Curso"
@@ -349,7 +358,7 @@ function CourseTile({
     <article className="group relative flex min-w-0 flex-col gap-5 rounded-xl border border-[color:var(--grip-line)] bg-[color:var(--grip-card)] p-4 shadow-[0_8px_24px_rgb(0_0_0/0.25)] sm:p-5 lg:gap-6 lg:p-6 transition-all duration-200 hover:-translate-y-0.5 hover:border-[color:var(--grip-gold-deep)]">
       <div className="absolute right-3 top-3">
         <button
-          onClick={() => setMenuOpen((o) => !o)}
+          onClick={() => (menuOpen ? closeMenu() : setMenuOpen(true))}
           aria-label={`Opciones de ${card.title}`}
           aria-expanded={menuOpen}
           className="flex h-9 w-9 items-center justify-center rounded-lg text-[color:var(--hud-muted)] transition-colors hover:bg-[color:var(--grip-tab)] hover:text-[color:var(--hud-text)]"
@@ -357,22 +366,60 @@ function CourseTile({
           <MoreVertical className="h-5 w-5" />
         </button>
         {menuOpen && (
-          <div className="absolute right-0 top-10 z-20 w-48 rounded-lg border border-[color:var(--grip-line)] bg-[color:var(--grip-tab)] p-1 shadow-xl">
-            <button
-              onClick={() => {
-                onToggleBookmark()
-                setMenuOpen(false)
-              }}
-              className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-[color:var(--hud-text)] hover:bg-[#1a2a44]"
-            >
-              {bookmarked ? (
-                <BookmarkCheck className="h-4 w-4 text-[color:var(--grip-gold)]" />
+          <>
+            <div className="fixed inset-0 z-10" aria-hidden="true" onClick={closeMenu} />
+            <div className="absolute right-0 top-10 z-20 w-60 rounded-lg border border-[color:var(--grip-line)] bg-[color:var(--grip-tab)] p-1 shadow-xl">
+              {confirmReset ? (
+                <div className="flex flex-col gap-2 p-2">
+                  <p className="text-sm leading-relaxed text-[color:var(--hud-text)]">
+                    {"¿Reiniciar todo el curso? Tu progreso volverá a 0 %."}
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={closeMenu}
+                      className="flex-1 rounded-md px-3 py-2 text-sm text-[color:var(--hud-muted)] hover:bg-[#1a2a44]"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={() => {
+                        onReset()
+                        closeMenu()
+                      }}
+                      className="flex-1 rounded-md bg-[color:var(--hud-danger)] px-3 py-2 text-sm font-semibold text-[color:var(--hud-text)] hover:opacity-90"
+                    >
+                      Reiniciar
+                    </button>
+                  </div>
+                </div>
               ) : (
-                <Bookmark className="h-4 w-4" />
+                <>
+                  <button
+                    onClick={() => setConfirmReset(true)}
+                    disabled={progress === 0}
+                    className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-[color:var(--hud-text)] hover:bg-[#1a2a44] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
+                  >
+                    <RotateCcw className="h-4 w-4" />
+                    Reiniciar curso
+                  </button>
+                  <button
+                    onClick={() => {
+                      onToggleBookmark()
+                      closeMenu()
+                    }}
+                    className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-[color:var(--hud-text)] hover:bg-[#1a2a44]"
+                  >
+                    {bookmarked ? (
+                      <BookmarkCheck className="h-4 w-4 text-[color:var(--grip-gold)]" />
+                    ) : (
+                      <Bookmark className="h-4 w-4" />
+                    )}
+                    {bookmarked ? "Quitar de marcadores" : "Guardar en marcadores"}
+                  </button>
+                </>
               )}
-              {bookmarked ? "Quitar de marcadores" : "Guardar en marcadores"}
-            </button>
-          </div>
+            </div>
+          </>
         )}
       </div>
 
@@ -381,7 +428,6 @@ function CourseTile({
           <Icon className="h-10 w-10 text-[color:var(--grip-gold)] sm:h-12 sm:w-12 xl:h-14 xl:w-14" strokeWidth={1.4} aria-hidden="true" />
         </div>
         <div className="flex min-w-0 flex-col gap-2">
-          <span className="hud-label text-[color:var(--grip-gold)]">{card.category}</span>
           <h3 className="text-base font-semibold leading-snug text-balance text-[color:var(--hud-text)] sm:text-lg xl:text-xl">
             {card.title}
           </h3>
