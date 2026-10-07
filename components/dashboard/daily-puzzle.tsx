@@ -4,6 +4,7 @@ import { useState } from "react"
 import { ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react"
 import { QuizCard } from "@/components/dashboard/quiz-card"
 import { DAILY_PUZZLES, todayPuzzleIndex } from "@/lib/dashboard/daily-puzzles"
+import { awardXp } from "@/lib/status/client"
 
 /**
  * Rompecabezas diario: una situación de juego por día, con feedback inmediato.
@@ -35,6 +36,7 @@ export function DailyPuzzleView({
     const next = { ...answers, [puzzle.id]: index }
     setAnswers(next)
     onProgress?.(Math.round((Object.keys(next).length / total) * 100))
+    if (isToday) awardXp("daily_puzzle", new Date().toISOString().slice(0, 10))
   }
 
   const goOlder = () => setOffset((o) => Math.min(o + 1, total - 1))

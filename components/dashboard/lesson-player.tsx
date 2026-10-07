@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react"
 import { ArrowLeft, Bookmark, Check, ChevronRight, Link2, ListVideo, X } from "lucide-react"
 import { MuxVideoPlayer } from "@/components/mux/mux-video-player"
 import { LessonSidebar } from "@/components/dashboard/lesson-sidebar"
+import { awardXp } from "@/lib/status/client"
 
 /**
  * GRIP — Reproductor de lección (Vista 2).
@@ -72,6 +73,7 @@ export function LessonPlayer({
     const next = new Set(completed).add(id)
     setCompleted(next)
     onProgress?.(Math.round((next.size / flat.length) * 100))
+    awardXp("lesson_complete", id)
   }
 
   function select(id: string) {

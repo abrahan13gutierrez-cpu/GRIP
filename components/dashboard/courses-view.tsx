@@ -33,6 +33,7 @@ import {
 } from "lucide-react"
 import { LessonPlayer, type Course } from "@/components/dashboard/lesson-player"
 import { DailyPuzzleView } from "@/components/dashboard/daily-puzzle"
+import { consumeOpenPuzzle } from "@/lib/dashboard/intents"
 
 // Placeholder de Mux hasta subir el video real de cada lección (reemplazar por su playbackId).
 const PLACEHOLDER_PLAYBACK = "hDf4L01SaB1w4y4EjcgzTD6BjiNA4Ns9c7bWeYxwlccU"
@@ -151,7 +152,7 @@ function courseFor(card: CourseCard): Course {
 export function CoursesView() {
   const [tab, setTab] = useState<TabId>("categorias")
   const [lesson, setLesson] = useState<Course | null>(null)
-  const [puzzleOpen, setPuzzleOpen] = useState(false)
+  const [puzzleOpen, setPuzzleOpen] = useState(consumeOpenPuzzle)
   const [bookmarks, setBookmarks] = useState<Set<string>>(() => new Set())
 
   const { data: progressData, mutate: mutateProgress } = useSWR<{ progress: Record<string, number> }>(

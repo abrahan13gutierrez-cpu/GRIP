@@ -30,12 +30,25 @@ import {
   Settings,
   Trash2,
   Loader2,
+  Bold,
+  Italic,
+  Quote,
+  List,
+  PinOff,
+  Flame,
 } from "lucide-react"
 import { DashboardSidebar } from "@/components/dashboard/dashboard-sidebar"
 import { LiveCallModal } from "@/components/daily/live-call-modal"
 import { useLiveCall } from "@/components/daily/use-live-call"
 import { createClient } from "@/lib/supabase/client"
 import type { ViewId } from "@/lib/dashboard/data"
+import { CHAT_CATEGORIES, MOTD_CHANNEL_SLUG, QUICK_REACTIONS } from "@/lib/status/config"
+import { authedFetch, awardXp, useStatus, useUnread, type StatusMember } from "@/lib/status/client"
+import { useT } from "@/i18n"
+import { BadgeIcons, EmojiPicker, RankBadge, RankName, RichText } from "@/components/chat/status-ui"
+import { MembersPanel, usePins } from "@/components/chat/members-panel"
+import { DAILY_PUZZLES, todayPuzzleIndex } from "@/lib/dashboard/daily-puzzles"
+import { requestOpenPuzzle } from "@/lib/dashboard/intents"
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json())
 
@@ -79,6 +92,10 @@ type DisplayMsg = {
   reactions: Reaction[]
   replyAuthor: string | null
   replySnippet: string | null
+  userId: string
+  rankId: string
+  badges: string[]
+  pinned: boolean
 }
 
 type ApiMember = {
@@ -149,20 +166,6 @@ function timeAgo(iso: string) {
   return `hace ${d} d`
 }
 
-const ROLE_LABEL: Record<ApiMember["role"], string> = {
-  Coach: "Profesores",
-  Student: "Estudiantes",
-  Bot: "Bots",
-}
-
-const ROLE_STYLES: Record<ApiMember["role"], string> = {
-  Coach: "bg-[#d4af37]/15 text-[#d4af37]",
-  Bot: "bg-[#3b82f6]/15 text-[#7fb0ff]",
-  Student: "bg-white/5 text-[#a3abbf]",
-}
-
-const QUICK_REACTIONS = ["👑", "💪", "🔥", "🎯", "⚡", "👍"]
-
 function Avatar({
   url,
   initials,
@@ -206,18 +209,19 @@ function TopBar({
   onOpenSearch: () => void
   onToggleProfileMenu: () => void
 }) {
+  const t = useT()
   return (
     <header className="flex items-center justify-between gap-2 border-b border-[color:var(--grip-line)] bg-[color:var(--grip-bg)] px-3 py-3 sm:px-4 md:px-6">
-      <span className="truncate text-base font-semibold text-[color:var(--hud-text)] sm:text-lg md:text-2xl">Chat</span>
+      <span className="truncate text-base font-semibold text-[color:var(--hud-text)] sm:text-lg md:text-2xl">{t("chat.title")}</span>
 
       <div className="ml-auto flex items-center gap-1">
-        <button onClick={onOpenSearch} aria-label="Buscar" className={TOPBAR_ICON_BTN}>
+        <button onClick={onOpenSearch} aria-label={t("chat.search")} className={TOPBAR_ICON_BTN}>
           <Search className="h-5 w-5" strokeWidth={1.75} />
         </button>
-        <button onClick={onToggleSaved} aria-label="Guardados" className={TOPBAR_ICON_BTN}>
+        <button onClick={onToggleSaved} aria-label={t("chat.saved")} className={TOPBAR_ICON_BTN}>
           <Bookmark className="h-5 w-5" strokeWidth={1.75} />
         </button>
-        <button onClick={onToggleNotifications} aria-label="Notificaciones" className={TOPBAR_ICON_BTN}>
+        <button onClick={onToggleNotifications} aria-label={t("chat.notifications")} className={TOPBAR_ICON_BTN}>
           <Bell className="h-5 w-5" strokeWidth={1.75} />
           {unread > 0 && (
             <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[color:var(--hud-danger)] px-1 text-[10px] font-bold text-[color:var(--hud-text)]">
@@ -229,14 +233,14 @@ function TopBar({
         <span className="mx-2 hidden h-6 w-px bg-[color:var(--grip-line)] md:block" />
         <button
           onClick={onToggleProfileMenu}
-          aria-label="Menú de perfil"
+          aria-label={t("chat.profileMenu")}
           className="flex items-center gap-2 rounded-lg px-1 py-1 transition-colors hover:bg-[color:var(--grip-tab)] md:px-2"
         >
           <span className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full border border-[color:var(--grip-gold-deep)] bg-[color:var(--grip-tab)]">
             <Avatar url={me?.avatar_url ?? null} initials={initialsFrom(me?.name ?? "GR")} size="md" />
           </span>
           <span className="hidden max-w-[140px] truncate text-sm font-medium text-[color:var(--hud-text)] lg:block">
-            {me?.username ?? me?.name ?? "Mi perfil"}
+            {me?.username ?? me?.name ?? t("chat.myProfile")}
           </span>
           <ChevronDown className="hidden h-4 w-4 text-[color:var(--hud-muted)] lg:block" aria-hidden="true" />
         </button>
@@ -254,6 +258,7 @@ function ProfileMenu({
   onClose: () => void
   onNavigate?: (id: ViewId) => void
 }) {
+  const t = useT()
   async function logout() {
     try {
       await createClient().auth.signOut()
@@ -265,7 +270,7 @@ function ProfileMenu({
 
   const items = [
     {
-      label: "Perfil",
+      label: t("chat.profile"),
       icon: User,
       onClick: () => {
         onNavigate?.("profile")
@@ -273,7 +278,7 @@ function ProfileMenu({
       },
     },
     {
-      label: "Configuraciones de la cuenta",
+      label: t("chat.accountSettings"),
       icon: Settings,
       onClick: () => {
         onNavigate?.("profile")
@@ -289,7 +294,7 @@ function ProfileMenu({
         <div className="flex items-center gap-2.5 border-b border-[#1f2740] p-3">
           <Avatar url={me?.avatar_url ?? null} initials={initialsFrom(me?.name ?? "GR")} size="lg" />
           <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-[#e8ebf2]">{me?.username ?? me?.name ?? "Perfil"}</p>
+            <p className="truncate text-sm font-semibold text-[#e8ebf2]">{me?.username ?? me?.name ?? t("chat.profile")}</p>
             <p className="truncate text-xs text-[#8790a6]">{me?.nivel ?? ""}</p>
           </div>
         </div>
@@ -309,7 +314,7 @@ function ProfileMenu({
             className="flex w-full items-center gap-3 border-t border-[#1f2740] px-4 py-2.5 text-left text-sm text-[#ff6b6b] transition-colors hover:bg-white/5"
           >
             <LogOut className="h-4 w-4" />
-            Cerrar sesión
+            {t("chat.logout")}
           </button>
         </div>
       </div>
@@ -337,12 +342,13 @@ function NotificationsPanel({
     mutate()
   }
 
+  const t = useT()
   function describe(n: NotificationItem) {
-    if (n.summary) return n.summary
-    if (n.type === "reaction") return `${n.actor} reaccionó ${n.emoji ?? ""} a tu mensaje`
-    if (n.type === "reply") return `${n.actor} respondió a tu mensaje`
-    if (n.type === "mention") return `${n.actor} te mencionó`
-    return `${n.actor} interactuó contigo`
+    const vars = { actor: n.actor, emoji: n.emoji ?? "" }
+    if (n.type === "reaction") return t("chat.notif.reaction", vars)
+    if (n.type === "reply") return t("chat.notif.reply", vars)
+    if (n.type === "mention") return t("chat.notif.mention", vars)
+    return n.summary || t("chat.notif.other", vars)
   }
 
   return (
@@ -350,17 +356,17 @@ function NotificationsPanel({
       <div className="fixed inset-0 z-40" onClick={onClose} />
       <div className="absolute right-2 top-12 z-50 flex max-h-[70vh] w-[min(360px,92vw)] flex-col overflow-hidden rounded-xl border border-[#1f2740] bg-[#0d1322] shadow-xl shadow-black/40">
         <div className="flex items-center justify-between border-b border-[#1f2740] px-4 py-3">
-          <span className="text-sm font-semibold text-[#e8ebf2]">Notificaciones</span>
+          <span className="text-sm font-semibold text-[#e8ebf2]">{t("chat.notifications")}</span>
           <div className="flex items-center gap-1">
             <button
               onClick={markAll}
               className="rounded-lg px-2 py-1 text-xs text-[#8790a6] transition-colors hover:bg-white/5 hover:text-[#e8ebf2]"
             >
-              Marcar leídas
+              {t("chat.markAllRead")}
             </button>
             <button
               onClick={onClose}
-              aria-label="Cerrar"
+              aria-label={t("chat.close")}
               className="flex h-7 w-7 items-center justify-center rounded-lg text-[#8790a6] hover:bg-white/5 hover:text-[#e8ebf2]"
             >
               <X className="h-4 w-4" />
@@ -369,7 +375,7 @@ function NotificationsPanel({
         </div>
         <div className="flex-1 overflow-y-auto">
           {notifications.length === 0 ? (
-            <p className="px-4 py-10 text-center text-sm text-[#6b7591]">No tienes notificaciones.</p>
+            <p className="px-4 py-10 text-center text-sm text-[#6b7591]">{t("chat.noNotifications")}</p>
           ) : (
             notifications.map((n) => (
               <button
@@ -420,6 +426,7 @@ function SavedPanel({
   onClose: () => void
   onSelectChannel: (id: string) => void
 }) {
+  const t = useT()
   const { data, mutate } = useSWR<{ saved: SavedItem[] }>("/api/chat/saved", fetcher)
   const saved = data?.saved ?? []
 
@@ -438,11 +445,11 @@ function SavedPanel({
       <div className="absolute right-2 top-12 z-50 flex max-h-[70vh] w-[min(380px,92vw)] flex-col overflow-hidden rounded-xl border border-[#1f2740] bg-[#0d1322] shadow-xl shadow-black/40">
         <div className="flex items-center justify-between border-b border-[#1f2740] px-4 py-3">
           <span className="flex items-center gap-2 text-sm font-semibold text-[#e8ebf2]">
-            <Bookmark className="h-4 w-4 text-[#d4af37]" /> Mensajes guardados
+            <Bookmark className="h-4 w-4 text-[#d4af37]" /> {t("chat.savedMessages")}
           </span>
           <button
             onClick={onClose}
-            aria-label="Cerrar"
+            aria-label={t("chat.close")}
             className="flex h-7 w-7 items-center justify-center rounded-lg text-[#8790a6] hover:bg-white/5 hover:text-[#e8ebf2]"
           >
             <X className="h-4 w-4" />
@@ -450,9 +457,7 @@ function SavedPanel({
         </div>
         <div className="flex-1 overflow-y-auto">
           {saved.length === 0 ? (
-            <p className="px-4 py-10 text-center text-sm text-[#6b7591]">
-              Aún no has guardado mensajes. Usa &quot;Guardar mensaje&quot; en las acciones.
-            </p>
+            <p className="px-4 py-10 text-center text-sm text-[#6b7591]">{t("chat.noSaved")}</p>
           ) : (
             saved.map((s) => (
               <div key={s.messageId} className="group border-b border-[#1f2740] px-4 py-3">
@@ -468,7 +473,7 @@ function SavedPanel({
                   </button>
                   <button
                     onClick={() => unsave(s.messageId)}
-                    aria-label="Quitar de guardados"
+                    aria-label={t("chat.removeSaved")}
                     className="flex h-6 w-6 items-center justify-center rounded text-[#6b7591] transition-colors hover:bg-white/5 hover:text-[#ff6b6b]"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
@@ -499,6 +504,7 @@ function GlobalSearchModal({
   onClose: () => void
   onSelectChannel: (id: string) => void
 }) {
+  const t = useT()
   const [query, setQuery] = useState("")
   const [groups, setGroups] = useState<SearchGroup[]>([])
   const [loading, setLoading] = useState(false)
@@ -531,13 +537,13 @@ function GlobalSearchModal({
           autoFocus
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Buscar cursos, misiones, canales y personas…"
+          placeholder={t("chat.searchPlaceholder")}
           className="min-w-0 flex-1 bg-transparent text-sm text-[#e8ebf2] outline-none placeholder:text-[#6b7591]"
         />
         {loading && <Loader2 className="h-4 w-4 animate-spin text-[#6b7591]" />}
         <button
           onClick={onClose}
-          aria-label="Cerrar búsqueda"
+          aria-label={t("chat.closeSearch")}
           className="flex h-8 w-8 items-center justify-center rounded-lg text-[#8790a6] hover:bg-white/5 hover:text-[#e8ebf2]"
         >
           <X className="h-5 w-5" />
@@ -546,9 +552,9 @@ function GlobalSearchModal({
 
       <div className="flex-1 overflow-y-auto p-4">
         {!query.trim() ? (
-          <p className="py-10 text-center text-sm text-[#6b7591]">Escribe para buscar en todo el campus.</p>
+          <p className="py-10 text-center text-sm text-[#6b7591]">{t("chat.searchEmpty")}</p>
         ) : groups.length === 0 && !loading ? (
-          <p className="py-10 text-center text-sm text-[#6b7591]">Sin resultados para &quot;{query}&quot;.</p>
+          <p className="py-10 text-center text-sm text-[#6b7591]">{t("chat.searchNoResults", { q: query })}</p>
         ) : (
           <div className="mx-auto flex max-w-xl flex-col gap-5">
             {groups.map((g) => (
@@ -595,18 +601,21 @@ function ChannelList({
   groups,
   active,
   onSelect,
+  unread = {},
 }: {
   groups: ChannelGroupView[]
   active: string
   onSelect: (id: string) => void
+  unread?: Record<string, { unread: number; mentions: number }>
 }) {
+  const t = useT()
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
   const toggle = (label: string) => setCollapsed((prev) => ({ ...prev, [label]: !prev[label] }))
 
   return (
     <div className="flex h-full w-full flex-col overflow-y-auto border-r border-[#1f2740] bg-[#0d1322]">
       <div className="flex flex-col gap-4 p-3">
-        {groups.length === 0 && <p className="px-1 text-xs text-[#6b7591]">Cargando canales…</p>}
+        {groups.length === 0 && <p className="px-1 text-xs text-[#6b7591]">{t("chat.loadingChannels")}</p>}
         {groups.map((group) => {
           const isCollapsed = collapsed[group.label]
           return (
@@ -631,6 +640,8 @@ function ChannelList({
                 <div className="flex flex-col gap-0.5">
                   {group.channels.map((ch) => {
                     const isActive = active === ch.id
+                    const counts = isActive ? undefined : unread[ch.id]
+                    const hasUnread = !!counts && counts.unread > 0
                     return (
                       <button
                         key={ch.id}
@@ -638,7 +649,9 @@ function ChannelList({
                         className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition-colors ${
                           isActive
                             ? "bg-[#d4af37]/10 text-[#e8ebf2]"
-                            : "text-[#8790a6] hover:bg-white/5 hover:text-[#e8ebf2]"
+                            : hasUnread
+                              ? "font-semibold text-[#e8ebf2] hover:bg-white/5"
+                              : "text-[#8790a6] hover:bg-white/5 hover:text-[#e8ebf2]"
                         }`}
                       >
                         {ch.emoji ? (
@@ -649,6 +662,22 @@ function ChannelList({
                           <Hash className="h-4 w-4 shrink-0 opacity-70" />
                         )}
                         <span className="flex-1 truncate text-left">{ch.name}</span>
+                        {hasUnread &&
+                          (counts.mentions > 0 ? (
+                            <span
+                              aria-label={t("chat.mentions", { n: counts.mentions })}
+                              className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[color:var(--hud-danger)] px-1.5 text-[11px] font-bold text-[#e8ebf2]"
+                            >
+                              {counts.mentions > 99 ? "99+" : counts.mentions}
+                            </span>
+                          ) : (
+                            <span
+                              aria-label={t("chat.unread", { n: counts.unread })}
+                              className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[#d4af37]/15 px-1.5 text-[11px] font-semibold text-[#d4af37]"
+                            >
+                              {counts.unread > 99 ? "99+" : counts.unread}
+                            </span>
+                          ))}
                       </button>
                     )
                   })}
@@ -705,6 +734,8 @@ function MessageRow({
   onQuickReact: (msg: DisplayMsg, emoji: string) => void
   onReply: (msg: DisplayMsg) => void
 }) {
+  const t = useT()
+  const [pickerOpen, setPickerOpen] = useState(false)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const startPress = () => {
     timer.current = setTimeout(() => onOpenActions(msg), 450)
@@ -725,16 +756,30 @@ function MessageRow({
         e.preventDefault()
         onOpenActions(msg)
       }}
-      className="group relative flex gap-3 px-4 py-2 hover:bg-white/[0.02]"
+      className={`group relative flex gap-3 px-4 py-2 hover:bg-white/[0.02] ${
+        msg.pinned ? "bg-[#d4af37]/[0.04]" : ""
+      }`}
     >
       <Avatar url={msg.avatarUrl} initials={msg.initials} size="lg" />
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-semibold text-[#e8ebf2]">{msg.author}</span>
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+          <span className="flex min-w-0 items-center gap-1.5">
+            <RankBadge rankId={msg.rankId} />
+            <RankName name={msg.author} rankId={msg.rankId} className="text-sm font-semibold" />
+          </span>
+          <BadgeIcons ids={msg.badges} />
           {msg.mine && (
-            <span className="rounded bg-[#d4af37]/15 px-1.5 py-0.5 text-[10px] font-medium text-[#d4af37]">Tú</span>
+            <span className="rounded bg-[#d4af37]/15 px-1.5 py-0.5 text-[10px] font-medium text-[#d4af37]">
+              {t("chat.you")}
+            </span>
           )}
           <span className="text-xs text-[#6b7591]">{msg.time}</span>
+          {msg.pinned && (
+            <span className="flex items-center gap-1 text-[11px] font-medium text-[#d4af37]">
+              <Pin className="h-3 w-3" aria-hidden="true" />
+              {t("chat.pinned")}
+            </span>
+          )}
         </div>
 
         {msg.replySnippet && (
@@ -745,34 +790,60 @@ function MessageRow({
           </div>
         )}
 
-        <div className="mt-1 max-w-lg">
-          <p className="text-pretty text-sm leading-relaxed text-[#c3cad9]">{msg.content}</p>
+        <div className="mt-1 max-w-2xl">
+          <RichText content={msg.content} />
         </div>
 
         <ReactionBar reactions={msg.reactions} onToggle={(emoji) => onQuickReact(msg, emoji)} />
       </div>
 
       {/* Hover toolbar (pointer devices) */}
-      <div className="absolute -top-2 right-3 hidden items-center gap-0.5 rounded-lg border border-[#1f2740] bg-[#111726] p-0.5 shadow-lg shadow-black/30 group-hover:flex">
-        {QUICK_REACTIONS.slice(0, 4).map((emoji) => (
+      <div
+        className={`absolute -top-2 right-3 items-center gap-0.5 rounded-lg border border-[#1f2740] bg-[#111726] p-0.5 shadow-lg shadow-black/30 ${
+          pickerOpen ? "flex" : "hidden group-hover:flex"
+        }`}
+      >
+        {QUICK_REACTIONS.map((emoji) => (
           <button
             key={emoji}
             onClick={() => onQuickReact(msg, emoji)}
+            aria-label={`${t("chat.addReaction")} ${emoji}`}
             className="flex h-7 w-7 items-center justify-center rounded text-sm transition-colors hover:bg-white/10"
           >
             {emoji}
           </button>
         ))}
+        <div className="relative">
+          <button
+            onClick={() => setPickerOpen((v) => !v)}
+            aria-label={t("chat.addReaction")}
+            aria-expanded={pickerOpen}
+            className="flex h-7 w-7 items-center justify-center rounded text-[#8790a6] transition-colors hover:bg-white/10 hover:text-[#e8ebf2]"
+          >
+            <Smile className="h-4 w-4" />
+          </button>
+          {pickerOpen && (
+            <EmojiPicker
+              label={t("chat.addReaction")}
+              className="right-0 top-9"
+              onPick={(emoji) => {
+                onQuickReact(msg, emoji)
+                setPickerOpen(false)
+              }}
+              onClose={() => setPickerOpen(false)}
+            />
+          )}
+        </div>
         <button
           onClick={() => onReply(msg)}
-          aria-label="Responder"
+          aria-label={t("chat.reply")}
           className="flex h-7 w-7 items-center justify-center rounded text-[#8790a6] transition-colors hover:bg-white/10 hover:text-[#e8ebf2]"
         >
           <CornerUpLeft className="h-4 w-4" />
         </button>
         <button
           onClick={() => onOpenActions(msg)}
-          aria-label="Más acciones"
+          aria-label={t("chat.moreActions")}
           className="flex h-7 w-7 items-center justify-center rounded text-[#8790a6] transition-colors hover:bg-white/10 hover:text-[#e8ebf2]"
         >
           <ChevronDown className="h-4 w-4" />
@@ -782,7 +853,7 @@ function MessageRow({
       {/* Always-visible options button for touch */}
       <button
         onClick={() => onOpenActions(msg)}
-        aria-label="Acciones del mensaje"
+        aria-label={t("chat.messageActions")}
         className="absolute right-3 top-1 flex h-7 w-7 items-center justify-center rounded-lg bg-[#111726]/80 text-[#8790a6] ring-1 ring-[#1f2740] transition-colors hover:text-[#e8ebf2] group-hover:hidden sm:hidden"
       >
         <ChevronDown className="h-4 w-4" />
@@ -804,6 +875,7 @@ function MessagePane({
   onOpenActions,
   onQuickReact,
   onReply,
+  motd,
 }: {
   channel: string
   messages: DisplayMsg[]
@@ -817,9 +889,51 @@ function MessagePane({
   onOpenActions: (msg: DisplayMsg) => void
   onQuickReact: (msg: DisplayMsg, emoji: string) => void
   onReply: (msg: DisplayMsg) => void
+  motd?: React.ReactNode
 }) {
+  const t = useT()
   const [text, setText] = useState("")
+  const [emojiOpen, setEmojiOpen] = useState(false)
   const scrollRef = useRef<HTMLDivElement | null>(null)
+  const inputRef = useRef<HTMLTextAreaElement | null>(null)
+
+  useEffect(() => {
+    const el = inputRef.current
+    if (!el) return
+    el.style.height = "auto"
+    el.style.height = `${Math.min(el.scrollHeight, 160)}px`
+  }, [text])
+
+  const wrapSelection = (before: string, after = before) => {
+    const el = inputRef.current
+    if (!el) return
+    const { selectionStart: s, selectionEnd: e } = el
+    const next = text.slice(0, s) + before + text.slice(s, e) + after + text.slice(e)
+    setText(next)
+    requestAnimationFrame(() => {
+      el.focus()
+      el.setSelectionRange(s + before.length, e + before.length)
+    })
+  }
+
+  const prefixLines = (prefix: string) => {
+    const el = inputRef.current
+    const s = el?.selectionStart ?? text.length
+    const lineStart = text.lastIndexOf("\n", s - 1) + 1
+    setText(text.slice(0, lineStart) + prefix + text.slice(lineStart))
+    requestAnimationFrame(() => el?.focus())
+  }
+
+  const insertAtCursor = (value: string) => {
+    const el = inputRef.current
+    const s = el?.selectionStart ?? text.length
+    const e = el?.selectionEnd ?? text.length
+    setText(text.slice(0, s) + value + text.slice(e))
+    requestAnimationFrame(() => {
+      el?.focus()
+      el?.setSelectionRange(s + value.length, s + value.length)
+    })
+  }
 
   useEffect(() => {
     const el = scrollRef.current
@@ -838,17 +952,17 @@ function MessagePane({
       <header className="flex items-center gap-2 border-b border-[#1f2740] px-3 py-3 sm:px-4">
         <button
           onClick={onOpenNav}
-          aria-label="Abrir menú"
+          aria-label={t("chat.openMenu")}
           className="relative -ml-1 flex h-8 w-8 items-center justify-center rounded-lg text-[#8790a6] transition-colors hover:bg-white/5 hover:text-[#e8ebf2] sm:hidden"
         >
           <Menu className="h-5 w-5" />
         </button>
         <Hash className="h-5 w-5 shrink-0 text-[#d4af37]" />
         <span className="truncate font-semibold text-[#e8ebf2]">{channel}</span>
-        <div className="ml-auto flex items-center gap-1 sm:hidden">
+        <div className="ml-auto flex items-center gap-1 lg:hidden">
           <button
             onClick={onOpenMembers}
-            aria-label="Ver miembros"
+            aria-label={t("chat.viewMembers")}
             className="flex h-8 w-8 items-center justify-center rounded-lg text-[#8790a6] transition-colors hover:bg-white/5 hover:text-[#e8ebf2]"
           >
             <Users className="h-5 w-5" />
@@ -857,10 +971,11 @@ function MessagePane({
       </header>
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto py-3">
+        {motd}
         {loading && messages.length === 0 ? (
-          <p className="px-4 py-8 text-center text-sm text-[#6b7591]">Cargando mensajes…</p>
+          <p className="px-4 py-8 text-center text-sm text-[#6b7591]">{t("chat.loadingMessages")}</p>
         ) : messages.length === 0 ? (
-          <p className="px-4 py-8 text-center text-sm text-[#6b7591]">Aún no hay mensajes. Sé el primero en escribir.</p>
+          <p className="px-4 py-8 text-center text-sm text-[#6b7591]">{t("chat.noMessages")}</p>
         ) : (
           messages.map((m, i) => (
             <MessageRow
@@ -879,13 +994,13 @@ function MessagePane({
         <div className="flex items-center gap-2 border-t border-[#1f2740] bg-[#0d1322] px-3 py-2">
           <CornerUpLeft className="h-4 w-4 shrink-0 text-[#d4af37]" />
           <div className="min-w-0 flex-1 text-xs">
-            <span className="text-[#8790a6]">En respuesta a </span>
+            <span className="text-[#8790a6]">{t("chat.replyingTo")} </span>
             <span className="font-medium text-[#e8ebf2]">{replyingTo.author}</span>
             <span className="ml-2 truncate text-[#6b7591]">{replyingTo.content}</span>
           </div>
           <button
             onClick={onCancelReply}
-            aria-label="Cancelar respuesta"
+            aria-label={t("chat.cancelReply")}
             className="flex h-6 w-6 items-center justify-center rounded text-[#8790a6] hover:bg-white/5 hover:text-[#e8ebf2]"
           >
             <X className="h-4 w-4" />
@@ -894,33 +1009,69 @@ function MessagePane({
       )}
 
       <div className="border-t border-[#1f2740] p-3">
-        <div className="flex items-center gap-2 rounded-xl border border-[#1f2740] bg-[#111726] px-3 py-2">
-          <input
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.nativeEvent.isComposing && e.keyCode !== 229) {
-                e.preventDefault()
-                submit()
-              }
-            }}
-            placeholder={`Mensaje para #${channel}`}
-            className="min-w-0 flex-1 bg-transparent text-sm text-[#e8ebf2] outline-none placeholder:text-[#6b7591]"
-          />
-          <button aria-label="Emoji" className="text-[#8790a6] transition-colors hover:text-[#d4af37]">
-            <Smile className="h-5 w-5" />
-          </button>
-          <button aria-label="Adjuntar" className="text-[#8790a6] transition-colors hover:text-[#d4af37]">
-            <Paperclip className="h-5 w-5" />
-          </button>
-          <button
-            onClick={submit}
-            disabled={sending || !text.trim()}
-            aria-label="Enviar mensaje"
-            className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#d4af37] text-[#0a0e1a] transition-colors hover:bg-[#e6c455] disabled:opacity-40"
-          >
-            <Send className="h-4 w-4" />
-          </button>
+        <div className="rounded-xl border border-[#1f2740] bg-[#111726] focus-within:border-[#d4af37]/40">
+          <div className="flex items-center gap-0.5 border-b border-[#1f2740] px-2 py-1">
+            {[
+              { label: t("chat.bold"), icon: Bold, run: () => wrapSelection("**") },
+              { label: t("chat.italic"), icon: Italic, run: () => wrapSelection("_") },
+              { label: t("chat.quote"), icon: Quote, run: () => prefixLines("> ") },
+              { label: t("chat.list"), icon: List, run: () => prefixLines("- ") },
+            ].map(({ label, icon: Icon, run }) => (
+              <button
+                key={label}
+                type="button"
+                onClick={run}
+                aria-label={label}
+                title={label}
+                className="flex h-7 w-7 items-center justify-center rounded text-[#8790a6] transition-colors hover:bg-white/5 hover:text-[#e8ebf2]"
+              >
+                <Icon className="h-4 w-4" />
+              </button>
+            ))}
+          </div>
+          <div className="flex items-end gap-2 px-3 py-2">
+            <textarea
+              ref={inputRef}
+              rows={1}
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing && e.keyCode !== 229) {
+                  e.preventDefault()
+                  submit()
+                }
+              }}
+              placeholder={t("chat.messagePlaceholder", { channel })}
+              className="max-h-40 min-w-0 flex-1 resize-none bg-transparent py-1 text-sm leading-relaxed text-[#e8ebf2] outline-none placeholder:text-[#6b7591]"
+            />
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setEmojiOpen((v) => !v)}
+                aria-label={t("chat.emoji")}
+                aria-expanded={emojiOpen}
+                className="flex h-8 w-8 items-center justify-center text-[#8790a6] transition-colors hover:text-[#d4af37]"
+              >
+                <Smile className="h-5 w-5" />
+              </button>
+              {emojiOpen && (
+                <EmojiPicker
+                  label={t("chat.emoji")}
+                  className="bottom-10 right-0"
+                  onPick={insertAtCursor}
+                  onClose={() => setEmojiOpen(false)}
+                />
+              )}
+            </div>
+            <button
+              onClick={submit}
+              disabled={sending || !text.trim()}
+              aria-label={t("chat.send")}
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#d4af37] text-[#0a0e1a] transition-colors hover:bg-[#e6c455] disabled:opacity-40"
+            >
+              <Send className="h-4 w-4" />
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -928,74 +1079,6 @@ function MessagePane({
 }
 
 /* -------------------------------- Members --------------------------------- */
-
-function MemberRow({ member }: { member: ApiMember }) {
-  return (
-    <div className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 hover:bg-white/5">
-      <div className="relative">
-        <Avatar url={member.avatar_url} initials={member.initials} size="md" />
-        <span
-          className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-[#0d1322] ${
-            member.online ? "bg-[#4ade80]" : "bg-[#4b5468]"
-          }`}
-        />
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className={`truncate text-sm ${member.online ? "text-[#e8ebf2]" : "text-[#8790a6]"}`}>{member.name}</p>
-      </div>
-      <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${ROLE_STYLES[member.role]}`}>{member.role}</span>
-    </div>
-  )
-}
-
-function groupMembers(members: ApiMember[]) {
-  const order: ApiMember["role"][] = ["Coach", "Student", "Bot"]
-  return order
-    .map((role) => ({ role, members: members.filter((m) => m.role === role) }))
-    .filter((g) => g.members.length > 0)
-}
-
-function MemberList({ members }: { members: ApiMember[] }) {
-  const groups = groupMembers(members)
-  return (
-    <div className="hidden h-full w-56 shrink-0 flex-col gap-4 overflow-y-auto border-l border-[#1f2740] bg-[#0d1322] p-3 lg:flex">
-      {groups.length === 0 && <p className="px-2 text-xs text-[#6b7591]">Cargando miembros…</p>}
-      {groups.map((g) => (
-        <div key={g.role}>
-          <p className="px-2 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#6b7591]">
-            {ROLE_LABEL[g.role]} — {g.members.length}
-          </p>
-          <div className="flex flex-col gap-0.5">
-            {g.members.map((m) => (
-              <MemberRow key={m.id} member={m} />
-            ))}
-          </div>
-        </div>
-      ))}
-    </div>
-  )
-}
-
-function MembersByRole({ members }: { members: ApiMember[] }) {
-  const groups = groupMembers(members)
-  return (
-    <div className="flex flex-col gap-4 p-3">
-      {groups.length === 0 && <p className="px-2 text-xs text-[#6b7591]">Cargando miembros…</p>}
-      {groups.map((g) => (
-        <div key={g.role}>
-          <p className="px-2 pb-1 text-[11px] font-semibold text-[#8790a6]">
-            {ROLE_LABEL[g.role]} — {g.members.length}
-          </p>
-          <div className="flex flex-col gap-0.5">
-            {g.members.map((m) => (
-              <MemberRow key={m.id} member={m} />
-            ))}
-          </div>
-        </div>
-      ))}
-    </div>
-  )
-}
 
 /* ------------------------------- Drawers ---------------------------------- */
 
@@ -1046,17 +1129,16 @@ function LeftDrawer({
 }
 
 function RightDrawer({
-  channel,
   members,
+  loading,
+  channelId,
   onClose,
 }: {
-  channel: string
-  members: ApiMember[]
+  members: StatusMember[]
+  loading: boolean
+  channelId: string | null
   onClose: () => void
 }) {
-  const [tab, setTab] = useState<"members" | "pinned">("members")
-  const onlineCount = members.filter((m) => m.online).length
-
   return (
     <div className="absolute inset-0 z-40 lg:hidden">
       <motion.div
@@ -1073,65 +1155,7 @@ function RightDrawer({
         transition={{ type: "spring", stiffness: 360, damping: 38 }}
         className="absolute right-0 top-0 flex h-full w-[86%] max-w-[340px] flex-col border-l border-[#1f2740] bg-[#0d1322]"
       >
-        <div className="flex items-center gap-2.5 border-b border-[#1f2740] px-4 py-3">
-          <button
-            onClick={onClose}
-            aria-label="Cerrar miembros"
-            className="-ml-1 flex h-8 w-8 items-center justify-center rounded-lg text-[#8790a6] hover:bg-white/5 hover:text-[#e8ebf2]"
-          >
-            <ChevronRight className="h-5 w-5" />
-          </button>
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#1e2942] text-[#d4af37]">
-            <Hash className="h-4 w-4" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold text-[#e8ebf2]">{channel}</p>
-            <p className="flex items-center gap-1.5 text-xs text-[#8790a6]">
-              <span className="h-2 w-2 rounded-full bg-[#4ade80]" />
-              {onlineCount} en línea
-            </p>
-          </div>
-          <button aria-label="Refrescar" className="text-[#6b7591] hover:text-[#e8ebf2]">
-            <RefreshCw className="h-4 w-4" />
-          </button>
-        </div>
-
-        <div className="flex border-b border-[#1f2740]">
-          <button
-            onClick={() => setTab("members")}
-            className={`flex flex-1 items-center justify-center gap-2 py-2.5 text-sm transition-colors ${
-              tab === "members" ? "border-b-2 border-[#d4af37] text-[#e8ebf2]" : "text-[#6b7591] hover:text-[#a3abbf]"
-            }`}
-          >
-            <Users className="h-4 w-4" />
-          </button>
-          <button
-            onClick={() => setTab("pinned")}
-            className={`flex flex-1 items-center justify-center gap-2 py-2.5 text-sm transition-colors ${
-              tab === "pinned" ? "border-b-2 border-[#d4af37] text-[#e8ebf2]" : "text-[#6b7591] hover:text-[#a3abbf]"
-            }`}
-          >
-            <Pin className="h-4 w-4" />
-          </button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto">
-          {tab === "members" ? (
-            <MembersByRole members={members} />
-          ) : (
-            <div className="p-4">
-              <div className="flex items-start gap-2 rounded-xl border border-[#1f2740] bg-[#111726] p-3">
-                <Pin className="mt-0.5 h-4 w-4 shrink-0 text-[#d4af37]" />
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-[#d4af37]">Mensaje fijado</p>
-                  <p className="mt-1 text-sm text-[#c3cad9]">
-                    Bienvenido a GRIP. Publica tus victorias diarias y etiqueta a un profesor para recibir feedback.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
+        <MembersPanel members={members} loading={loading} channelId={channelId} onClose={onClose} />
       </motion.div>
     </div>
   )
@@ -1145,19 +1169,23 @@ function MessageActionSheet({
   onReact,
   onReply,
   onSave,
+  onTogglePin,
 }: {
   msg: DisplayMsg
   onClose: () => void
   onReact: (emoji: string) => void
   onReply: () => void
   onSave: () => void
+  onTogglePin: () => void
 }) {
+  const t = useT()
   const actions: { label: string; icon: typeof CornerUpLeft; onClick: () => void; danger?: boolean }[] = [
-    { label: "Responder", icon: CornerUpLeft, onClick: onReply },
-    { label: "Reenviar", icon: CornerUpRight, onClick: onClose },
-    { label: "Seleccionar mensajes", icon: CheckSquare, onClick: onClose },
+    { label: t("chat.reply"), icon: CornerUpLeft, onClick: onReply },
+    { label: msg.pinned ? t("chat.unpin") : t("chat.pin"), icon: msg.pinned ? PinOff : Pin, onClick: onTogglePin },
+    { label: t("chat.forward"), icon: CornerUpRight, onClick: onClose },
+    { label: t("chat.selectMessages"), icon: CheckSquare, onClick: onClose },
     {
-      label: "Copiar texto del mensaje",
+      label: t("chat.copyText"),
       icon: Copy,
       onClick: () => {
         navigator.clipboard?.writeText(msg.content).catch(() => {})
@@ -1165,19 +1193,19 @@ function MessageActionSheet({
       },
     },
     {
-      label: "Copiar enlace del mensaje",
+      label: t("chat.copyLink"),
       icon: Link2,
       onClick: () => {
         navigator.clipboard?.writeText(`${window.location.origin}/dashboard#msg-${msg.id}`).catch(() => {})
         onClose()
       },
     },
-    { label: "Guardar mensaje", icon: Bookmark, onClick: onSave },
-    { label: "Notificar respuestas", icon: Bell, onClick: onClose },
-    { label: "Marcar como no leído", icon: EyeOff, onClick: onClose },
-    { label: "Reportar mensaje", icon: Flag, onClick: onClose, danger: true },
+    { label: t("chat.save"), icon: Bookmark, onClick: onSave },
+    { label: t("chat.notifyReplies"), icon: Bell, onClick: onClose },
+    { label: t("chat.markUnread"), icon: EyeOff, onClick: onClose },
+    { label: t("chat.report"), icon: Flag, onClick: onClose, danger: true },
     {
-      label: "Copiar ID del mensaje",
+      label: t("chat.copyId"),
       icon: Hash,
       onClick: () => {
         navigator.clipboard?.writeText(msg.id).catch(() => {})
@@ -1303,10 +1331,11 @@ export function ChatView({
     }
   }, [userId, supabase])
 
-  const { data: membersData } = useSWR<{ members: ApiMember[] }>("/api/chat/members", fetcher, {
-    refreshInterval: 30000,
-  })
-  const members = useMemo(() => membersData?.members ?? [], [membersData])
+  const t = useT()
+  const { data: statusData, isLoading: statusLoading } = useStatus()
+  const members = useMemo(() => statusData?.members ?? [], [statusData])
+  const memberById = useMemo(() => new Map(members.map((m) => [m.id, m])), [members])
+  const { data: unreadData, mutate: mutateUnread } = useUnread()
 
   const { data: notifData } = useSWR<{ notifications: NotificationItem[]; unread: number }>(
     "/api/chat/notifications",
@@ -1316,18 +1345,22 @@ export function ChatView({
   const unread = notifData?.unread ?? 0
 
   const { data: channelsData } = useSWR<{ channels: ChannelRow[] }>("/api/chat/channels", fetcher)
-  const channels = useMemo(() => channelsData?.channels ?? [], [channelsData])
-
-  useEffect(() => {
-    if (!channelId && channels.length > 0) setChannelId(channels[0].id)
-  }, [channels, channelId])
-
-  const activeChannel = channels.find((c) => c.id === channelId)
-  const channelName = activeChannel?.name ?? ""
+  const allChannels = useMemo(() => channelsData?.channels ?? [], [channelsData])
 
   const groups = useMemo<ChannelGroupView[]>(() => {
+    const bySlug = new Map(allChannels.map((c) => [c.slug, c]))
+    const curated = CHAT_CATEGORIES.map(({ label, slugs }) => ({
+      label,
+      emoji: "",
+      channels: slugs
+        .map((s) => bySlug.get(s))
+        .filter((c): c is ChannelRow => !!c)
+        .map((c) => ({ id: c.id, name: c.name, emoji: c.emoji ?? "" })),
+    })).filter((g) => g.channels.length > 0)
+    if (curated.length > 0) return curated
+
     const map = new Map<string, { id: string; name: string; emoji: string }[]>()
-    for (const c of channels) {
+    for (const c of allChannels) {
       const list = map.get(c.category) ?? []
       list.push({ id: c.id, name: c.name, emoji: c.emoji ?? "" })
       map.set(c.category, list)
@@ -1337,7 +1370,66 @@ export function ChatView({
       emoji: CATEGORY_EMOJI[label] ?? "",
       channels: chs,
     }))
-  }, [channels])
+  }, [allChannels])
+
+  useEffect(() => {
+    const first = groups[0]?.channels[0]
+    if (!channelId && first) setChannelId(first.id)
+  }, [groups, channelId])
+
+  const activeChannel = allChannels.find((c) => c.id === channelId)
+  const channelName = activeChannel?.name ?? ""
+
+  const { data: pinsData, mutate: mutatePins } = usePins(channelId || null)
+  const pinnedIds = useMemo(() => new Set((pinsData?.pins ?? []).map((p) => p.id)), [pinsData])
+
+  useEffect(() => {
+    if (!channelId) return
+    authedFetch("/api/status/unread", { method: "POST", body: JSON.stringify({ channelId }) })
+      .then(() => mutateUnread())
+      .catch(() => {})
+  }, [channelId, mutateUnread])
+
+  const puzzle = DAILY_PUZZLES[todayPuzzleIndex()]
+  const puzzleDone = statusData?.me?.puzzleDoneToday ?? false
+  const motd =
+    activeChannel?.slug === MOTD_CHANNEL_SLUG && puzzle ? (
+      <section
+        aria-label={t("motd.label")}
+        className="mx-3 mb-3 flex flex-col gap-3 rounded-xl border border-[#d4af37]/30 bg-[#d4af37]/[0.06] p-4 sm:flex-row sm:items-center"
+      >
+        <div className="min-w-0 flex-1">
+          <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#d4af37]">
+            <Pin className="h-3 w-3" aria-hidden="true" />
+            {t("motd.label")}
+          </p>
+          <p className="mt-1 text-pretty text-sm font-semibold text-[#e8ebf2]">
+            {t("motd.title", { topic: puzzle.topic })}
+          </p>
+          {(statusData?.me?.streak ?? 0) > 0 && (
+            <p className="mt-1 flex items-center gap-1 text-xs text-[#a3abbf]">
+              <Flame className="h-3.5 w-3.5 text-[#F59E0B]" aria-hidden="true" />
+              {t("members.streak", { n: statusData?.me?.streak ?? 0 })}
+            </p>
+          )}
+        </div>
+        {puzzleDone ? (
+          <span className="shrink-0 rounded-lg border border-[#4ADE80]/30 px-3 py-2 text-xs font-semibold text-[#4ADE80]">
+            {t("motd.done")}
+          </span>
+        ) : (
+          <button
+            onClick={() => {
+              requestOpenPuzzle()
+              onNavigate?.("courses")
+            }}
+            className="shrink-0 rounded-lg bg-[#d4af37] px-4 py-2 text-sm font-semibold text-[#0a0e1a] transition-colors hover:bg-[#e6c455]"
+          >
+            {t("motd.cta")}
+          </button>
+        )}
+      </section>
+    ) : null
 
   // Carga los mensajes del canal v��a RPC seguro (autor + reacciones agregadas,
   // sin exponer columnas sensibles de profiles).
@@ -1395,9 +1487,26 @@ export function ChatView({
         reactions: (m.reactions ?? []) as Reaction[],
         replyAuthor: m.reply_author ?? null,
         replySnippet: m.reply_snippet ?? null,
+        userId: m.user_id,
+        rankId: memberById.get(m.user_id)?.rankId ?? "",
+        badges: memberById.get(m.user_id)?.badges ?? [],
+        pinned: pinnedIds.has(m.id) || !!m.pinned_at,
       })),
-    [rawMessages, userId],
+    [rawMessages, userId, memberById, pinnedIds],
   )
+
+  async function togglePin(msg: DisplayMsg) {
+    if (msg.id.startsWith("optimistic-")) return
+    try {
+      await authedFetch("/api/status/pins", {
+        method: "POST",
+        body: JSON.stringify({ messageId: msg.id, pinned: !msg.pinned }),
+      })
+      await mutatePins()
+    } catch (err) {
+      console.log("[v0] togglePin error:", err)
+    }
+  }
 
   async function sendMessage(content: string) {
     if (!channelId || !userId) return
@@ -1515,10 +1624,11 @@ export function ChatView({
 
       <div className="flex min-h-0 flex-1">
         <div className="hidden w-56 shrink-0 sm:block">
-          <ChannelList groups={groups} active={channelId} onSelect={selectChannel} />
+          <ChannelList groups={groups} active={channelId} onSelect={selectChannel} unread={unreadData?.channels} />
         </div>
 
         <MessagePane
+          motd={motd}
           channel={channelName}
           messages={messages}
           loading={msgLoading}
@@ -1533,7 +1643,9 @@ export function ChatView({
           onReply={(m) => setReplyingTo(m)}
         />
 
-        <MemberList members={members} />
+        <aside className="hidden h-full w-64 shrink-0 flex-col border-l border-[#1f2740] bg-[#0d1322] lg:flex">
+          <MembersPanel members={members} loading={statusLoading} channelId={channelId || null} />
+        </aside>
       </div>
 
       {/* Top-bar dropdowns */}
@@ -1557,7 +1669,13 @@ export function ChatView({
           />
         )}
         {rightDrawer && (
-          <RightDrawer key="right" channel={channelName} members={members} onClose={() => setRightDrawer(false)} />
+          <RightDrawer
+            key="right"
+            members={members}
+            loading={statusLoading}
+            channelId={channelId || null}
+            onClose={() => setRightDrawer(false)}
+          />
         )}
         {actionMsg && (
           <MessageActionSheet
@@ -1574,6 +1692,10 @@ export function ChatView({
             }}
             onSave={() => {
               saveMessage(actionMsg)
+              setActionMsg(null)
+            }}
+            onTogglePin={() => {
+              togglePin(actionMsg)
               setActionMsg(null)
             }}
           />
