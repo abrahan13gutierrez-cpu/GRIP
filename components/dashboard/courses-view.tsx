@@ -220,7 +220,7 @@ export function CoursesView() {
   }
 
   const renderGrid = (list: CourseCard[]) => (
-    <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+    <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2 md:gap-6 lg:grid-cols-3">
       {list.map((c) => (
         <CourseTile
           key={c.id}
@@ -235,21 +235,8 @@ export function CoursesView() {
 
   let body: React.ReactNode
   if (tab === "categorias") {
-    body = (
-      <div className="flex flex-col gap-10">
-        {CATEGORY_ORDER.map((cat) => {
-          const list = cards.filter((c) => c.category === cat)
-          if (list.length === 0) return null
-          return (
-            <section key={cat} aria-labelledby={`cat-${cat}`} className="flex flex-col gap-4">
-              <h2 id={`cat-${cat}`} className="hud-label text-[color:var(--grip-gold)]">
-                {cat}
-              </h2>
-              {renderGrid(list)}
-            </section>
-          )
-        })}
-      </div>
+    body = renderGrid(
+      CATEGORY_ORDER.flatMap((cat) => cards.filter((c) => c.category === cat)),
     )
   } else {
     const list =
@@ -274,7 +261,7 @@ export function CoursesView() {
   return (
     <div className="hud h-full overflow-y-auto rounded-xl bg-[color:var(--grip-bg)]">
       <LearningHeader />
-      <div className="flex flex-col gap-6 px-4 pb-10 pt-6 md:px-6">
+      <div className="flex flex-col gap-4 px-3 pb-10 pt-4 sm:gap-6 sm:px-4 sm:pt-6 md:px-6">
         <div role="tablist" aria-label="Filtrar cursos" className="grid grid-cols-3 gap-2 md:gap-4">
           {TABS.map((t) => {
             const active = tab === t.id
@@ -285,7 +272,7 @@ export function CoursesView() {
                 role="tab"
                 aria-selected={active}
                 onClick={() => setTab(t.id)}
-                className={`flex h-12 items-center justify-center gap-2 rounded-lg px-2 text-sm transition-colors md:h-14 md:text-base ${
+                className={`flex h-11 min-w-0 items-center justify-center gap-2 rounded-lg px-1 text-xs tracking-tight transition-colors sm:h-12 sm:px-2 sm:text-sm sm:tracking-normal md:h-14 md:text-base ${
                   active
                     ? "bg-[color:var(--grip-gold)] font-semibold text-[color:var(--grip-bg)]"
                     : "bg-[color:var(--grip-tab)] font-medium text-[color:var(--hud-text)] hover:bg-[#15233a]"
@@ -307,10 +294,11 @@ function LearningHeader() {
   const iconBtn =
     "relative flex h-10 w-10 items-center justify-center rounded-lg text-[color:var(--hud-text)] transition-colors hover:bg-[color:var(--grip-tab)]"
   return (
-    <header className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-[color:var(--grip-line)] bg-[color:var(--grip-bg)] px-4 py-3 md:px-6">
-      <button className="flex min-w-0 items-center gap-2 text-left">
-        <span className="truncate text-lg font-semibold text-[color:var(--hud-text)] md:text-2xl">
-          Centro de aprendizaje
+    <header className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-[color:var(--grip-line)] bg-[color:var(--grip-bg)] px-3 py-3 sm:px-4 md:px-6">
+      <button className="flex min-w-0 items-center gap-1 text-left sm:gap-2">
+        <span className="truncate text-base font-semibold text-[color:var(--hud-text)] sm:text-lg md:text-2xl">
+          <span className="sm:hidden">Aprendizaje</span>
+          <span className="hidden sm:inline">Centro de aprendizaje</span>
         </span>
         <ChevronDown className="h-5 w-5 shrink-0 text-[color:var(--hud-muted)]" aria-hidden="true" />
       </button>
@@ -358,7 +346,7 @@ function CourseTile({
   const cta = progress >= 100 ? "Repasar" : progress > 0 ? "Continuar" : "Iniciar Curso"
 
   return (
-    <article className="group relative flex flex-col gap-6 rounded-xl border border-[color:var(--grip-line)] bg-[color:var(--grip-card)] p-6 shadow-[0_8px_24px_rgb(0_0_0/0.25)] transition-all duration-200 hover:-translate-y-0.5 hover:border-[color:var(--grip-gold-deep)]">
+    <article className="group relative flex min-w-0 flex-col gap-5 rounded-xl border border-[color:var(--grip-line)] bg-[color:var(--grip-card)] p-4 shadow-[0_8px_24px_rgb(0_0_0/0.25)] sm:p-5 lg:gap-6 lg:p-6 transition-all duration-200 hover:-translate-y-0.5 hover:border-[color:var(--grip-gold-deep)]">
       <div className="absolute right-3 top-3">
         <button
           onClick={() => setMenuOpen((o) => !o)}
@@ -388,12 +376,13 @@ function CourseTile({
         )}
       </div>
 
-      <div className="flex items-start gap-5 pr-8">
-        <div className="flex h-16 w-16 shrink-0 items-center justify-center md:h-24 md:w-24">
-          <Icon className="h-12 w-12 text-[color:var(--grip-gold)] md:h-16 md:w-16" strokeWidth={1.4} aria-hidden="true" />
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-4 sm:pr-8">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center sm:h-16 sm:w-16 xl:h-20 xl:w-20">
+          <Icon className="h-10 w-10 text-[color:var(--grip-gold)] sm:h-12 sm:w-12 xl:h-14 xl:w-14" strokeWidth={1.4} aria-hidden="true" />
         </div>
         <div className="flex min-w-0 flex-col gap-2">
-          <h3 className="text-lg font-semibold leading-snug text-balance text-[color:var(--hud-text)] md:text-xl">
+          <span className="hud-label text-[color:var(--grip-gold)]">{card.category}</span>
+          <h3 className="text-base font-semibold leading-snug text-balance text-[color:var(--hud-text)] sm:text-lg xl:text-xl">
             {card.title}
           </h3>
           {card.description && (
@@ -422,7 +411,7 @@ function CourseTile({
       <div className="flex justify-end">
         <button
           onClick={onStart}
-          className="flex min-h-11 items-center gap-3 rounded-md bg-[color:var(--grip-gold)] px-6 py-3 text-base font-semibold text-[color:var(--grip-bg)] shadow-[0_4px_12px_rgb(212_162_76/0.25)] transition-[filter] hover:brightness-105"
+          className="flex min-h-11 w-full items-center justify-center gap-3 rounded-md bg-[color:var(--grip-gold)] px-6 py-3 sm:w-auto text-base font-semibold text-[color:var(--grip-bg)] shadow-[0_4px_12px_rgb(212_162_76/0.25)] transition-[filter] hover:brightness-105"
         >
           {cta}
           <ChevronRight className="h-5 w-5" strokeWidth={2.25} aria-hidden="true" />
