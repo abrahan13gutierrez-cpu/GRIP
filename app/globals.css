@@ -106,3 +106,104 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* HUD sci-fi theme — reusable across Rompecabezas, Cursos, Bóveda. */
+:root {
+  --hud-bg: #060b16;
+  --hud-bg-2: #0a1424;
+  --hud-panel: rgb(13 22 38 / 0.8);
+  --hud-cyan: #2bb6e6;
+  --hud-cyan-bright: #6fd6ff;
+  --hud-gold: #d4a24c;
+  --hud-gold-from: #c9a24d;
+  --hud-gold-to: #b8863b;
+  --hud-text: #f2f6fb;
+  --hud-muted: #8796ad;
+  --hud-line: rgb(43 182 230 / 0.12);
+  --hud-success: #3ddc97;
+  --hud-danger: #f0605d;
+}
+
+@layer components {
+  .hud {
+    font-family: var(--font-inter), 'Inter', system-ui, sans-serif;
+    background-color: var(--hud-bg);
+    color: var(--hud-text);
+  }
+
+  /* Corner brackets drawn with layered gradients: only the 4 L-shaped corners are visible. */
+  .hud-frame {
+    --hud-c: var(--hud-cyan);
+    --hud-s: 24px;
+    --hud-w: 2px;
+    --hud-glow: rgb(43 182 230 / 0.25);
+    position: relative;
+    border: 1px solid var(--hud-line);
+    background:
+      linear-gradient(var(--hud-c), var(--hud-c)) top left / var(--hud-s) var(--hud-w) no-repeat,
+      linear-gradient(var(--hud-c), var(--hud-c)) top left / var(--hud-w) var(--hud-s) no-repeat,
+      linear-gradient(var(--hud-c), var(--hud-c)) top right / var(--hud-s) var(--hud-w) no-repeat,
+      linear-gradient(var(--hud-c), var(--hud-c)) top right / var(--hud-w) var(--hud-s) no-repeat,
+      linear-gradient(var(--hud-c), var(--hud-c)) bottom left / var(--hud-s) var(--hud-w) no-repeat,
+      linear-gradient(var(--hud-c), var(--hud-c)) bottom left / var(--hud-w) var(--hud-s) no-repeat,
+      linear-gradient(var(--hud-c), var(--hud-c)) bottom right / var(--hud-s) var(--hud-w) no-repeat,
+      linear-gradient(var(--hud-c), var(--hud-c)) bottom right / var(--hud-w) var(--hud-s) no-repeat,
+      var(--hud-panel);
+    box-shadow: 0 0 24px var(--hud-glow);
+    transition:
+      box-shadow 160ms ease,
+      border-color 160ms ease;
+  }
+
+  .hud-frame-gold {
+    border-bottom: 3px solid var(--hud-gold);
+  }
+
+  .hud-option {
+    --hud-s: 16px;
+    --hud-glow: rgb(43 182 230 / 0.1);
+  }
+  .hud-option:not(:disabled):hover,
+  .hud-option:focus-visible {
+    --hud-c: var(--hud-cyan-bright);
+    --hud-glow: rgb(43 182 230 / 0.35);
+    border-color: rgb(43 182 230 / 0.35);
+    outline: none;
+  }
+  .hud-option[data-state='chosen'] {
+    --hud-c: var(--hud-cyan-bright);
+    --hud-glow: rgb(43 182 230 / 0.5);
+    border-color: var(--hud-cyan);
+  }
+  .hud-option[data-state='correct'] {
+    --hud-c: var(--hud-success);
+    --hud-glow: rgb(61 220 151 / 0.35);
+    border-color: var(--hud-success);
+  }
+  .hud-option[data-state='wrong'] {
+    --hud-c: var(--hud-danger);
+    --hud-glow: rgb(240 96 93 / 0.35);
+    border-color: var(--hud-danger);
+  }
+  .hud-option[data-state='muted'] {
+    --hud-glow: transparent;
+    opacity: 0.5;
+  }
+
+  .hud-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--hud-cyan);
+  }
+
+  .hud-btn-gold {
+    background: linear-gradient(180deg, var(--hud-gold-from), var(--hud-gold-to));
+    color: var(--hud-bg);
+  }
+  .hud-btn-gold:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+}
