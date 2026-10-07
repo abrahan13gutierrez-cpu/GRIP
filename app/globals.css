@@ -122,6 +122,15 @@
   --hud-line: rgb(43 182 230 / 0.12);
   --hud-success: #3ddc97;
   --hud-danger: #f0605d;
+
+  /* Cursos (centro de aprendizaje) */
+  --grip-gold: #e6c98a;
+  --grip-gold-deep: #d4a24c;
+  --grip-bg: #0a1220;
+  --grip-tab: #0f1a2b;
+  --grip-card: #0d1626;
+  --grip-line: rgb(255 255 255 / 0.06);
+  --grip-track: #253247;
 }
 
 @layer components {

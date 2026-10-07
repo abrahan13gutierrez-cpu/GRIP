@@ -1,7 +1,6 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { useRouter } from "next/navigation"
 import useSWR from "swr"
 import {
   Rocket,
@@ -11,17 +10,52 @@ import {
   Brain,
   Handshake,
   Library,
-  Lock,
-  Bookmark,
   Frame,
+  Shield,
+  Target,
+  Footprints,
+  Gamepad2,
+  ListOrdered,
+  LayoutGrid,
+  Loader,
+  Bookmark,
+  BookmarkCheck,
+  ChevronDown,
+  ChevronRight,
+  CalendarDays,
+  Bell,
+  CircleHelp,
+  Search,
+  MoreVertical,
+  UserRound,
   type LucideIcon,
 } from "lucide-react"
 import { LessonPlayer, type Course } from "@/components/dashboard/lesson-player"
 import { DailyPuzzleView } from "@/components/dashboard/daily-puzzle"
-import { certNo, gradeStatus, toGrade } from "@/lib/dashboard/scouting"
 
 // Placeholder de Mux hasta subir el video real de cada lección (reemplazar por su playbackId).
 const PLACEHOLDER_PLAYBACK = "hDf4L01SaB1w4y4EjcgzTD6BjiNA4Ns9c7bWeYxwlccU"
+
+const BLOCKING_MODULE = {
+  id: "blocking",
+  title: "Blocking",
+  lessons: [
+    { id: "blk-1", title: "Blocking Aqua Bag", playbackId: "hDf4L01SaB1w4y4EjcgzTD6BjiNA4Ns9c7bWeYxwlccU" },
+    { id: "blk-2", title: "Blocking Stick", playbackId: "MZ2ANSYqKOJ934Mth8502TgxFH78DYa44rHC00XCicb3A" },
+    { id: "blk-3", title: "Blocking Regular Glove", playbackId: "f00R3uJoRIK02bPXn3qmGMKHTpqMUxKjcVIx0200dRq8pMQ" },
+  ],
+}
+
+const THROWING_MODULE = {
+  id: "throwing",
+  title: "Throwing",
+  lessons: [
+    { id: "thr-1", title: "Front Toss Plyo", playbackId: "FhItn8r864c9pkMlhcf00qmlo01RrhZHHQfFWkjOqYWyU" },
+    { id: "thr-2", title: "Walk Back Plyo", playbackId: "8XluQaDkAQ4JUSrEa9zQ1oLJL9hDV3B4Ae22475WbpY" },
+    { id: "thr-3", title: "Forward Walk Plyo", playbackId: "olvb6oJ9Ln8nUBL01q7oN2NNsp00kKzZBrPJlRYkoWO01E" },
+    { id: "thr-4", title: "Circle Aquabag One Knee", playbackId: "M8gjtQcKwwJ5xJgZ9AfGaTPniuYj44dGl7gZUHsqpdo" },
+  ],
+}
 
 // Contenido por curso. Cualquier tarjeta con entrada aquí abre el reproductor de lección.
 const COURSE_CONTENT: Record<string, Course> = {
@@ -42,41 +76,10 @@ const COURSE_CONTENT: Record<string, Course> = {
   boveda: {
     id: "boveda",
     title: "Bóveda del conocimiento",
-    modules: [
-      {
-        id: "blocking",
-        title: "Blocking",
-        lessons: [
-          {
-            id: "blk-1",
-            title: "Blocking Aqua Bag",
-            playbackId: "hDf4L01SaB1w4y4EjcgzTD6BjiNA4Ns9c7bWeYxwlccU",
-          },
-          {
-            id: "blk-2",
-            title: "Blocking Stick",
-            playbackId: "MZ2ANSYqKOJ934Mth8502TgxFH78DYa44rHC00XCicb3A",
-          },
-          {
-            id: "blk-3",
-            title: "Blocking Regular Glove",
-            playbackId: "f00R3uJoRIK02bPXn3qmGMKHTpqMUxKjcVIx0200dRq8pMQ",
-          },
-        ],
-      },
-      {
-        id: "throwing",
-        title: "Throwing",
-        lessons: [
-          { id: "thr-1", title: "Front Toss Plyo", playbackId: "FhItn8r864c9pkMlhcf00qmlo01RrhZHHQfFWkjOqYWyU" },
-          { id: "thr-2", title: "Walk Back Plyo", playbackId: "8XluQaDkAQ4JUSrEa9zQ1oLJL9hDV3B4Ae22475WbpY" },
-          { id: "thr-3", title: "Forward Walk Plyo", playbackId: "olvb6oJ9Ln8nUBL01q7oN2NNsp00kKzZBrPJlRYkoWO01E" },
-          { id: "thr-4", title: "Circle Aquabag One Knee", playbackId: "M8gjtQcKwwJ5xJgZ9AfGaTPniuYj44dGl7gZUHsqpdo" },
-        ],
-      },
-    ],
+    modules: [BLOCKING_MODULE, THROWING_MODULE],
   },
-  // Framing: módulo propio con los drills de presentación/marco del guante.
+  blocking: { id: "blocking", title: "Blocking", modules: [BLOCKING_MODULE] },
+  throwing: { id: "throwing", title: "Throwing", modules: [THROWING_MODULE] },
   framing: {
     id: "framing",
     title: "Framing",
@@ -85,116 +88,54 @@ const COURSE_CONTENT: Record<string, Course> = {
         id: "framing-core",
         title: "Framing",
         lessons: [
-          {
-            id: "frm-1",
-            title: "Resistance Band - Back",
-            playbackId: "s8Curbhz4dIc301FUabuAvDUg4vb7Y01uUKacIs2qAKWc",
-          },
-          {
-            id: "frm-2",
-            title: "Assistance Resistance - Front",
-            playbackId: "AhXTBI17FXLfIsa7z59HkYhxejZLUfHjTC02WPFshVPI",
-          },
-          {
-            id: "frm-3",
-            title: "CB Boz - Wrist Band",
-            playbackId: "5nex2D3t4Sofw4Ayrqcj1Bgelufxj7Z7yQ6rTPYiDnc",
-          },
+          { id: "frm-1", title: "Resistance Band - Back", playbackId: "s8Curbhz4dIc301FUabuAvDUg4vb7Y01uUKacIs2qAKWc" },
+          { id: "frm-2", title: "Assistance Resistance - Front", playbackId: "AhXTBI17FXLfIsa7z59HkYhxejZLUfHjTC02WPFshVPI" },
+          { id: "frm-3", title: "CB Boz - Wrist Band", playbackId: "5nex2D3t4Sofw4Ayrqcj1Bgelufxj7Z7yQ6rTPYiDnc" },
         ],
       },
     ],
   },
 }
 
-/**
- * GRIP — Cursos, presentado como dosier de scouting.
- * Cada curso es una "tarjeta-certificado" calificada en la escala 20-80 (ver
- * lib/dashboard/scouting). Paleta: base #0B1120, superficie #131C33,
- * borde #2A3552 (dorado #C9A227 en activo/hover). Números en serif.
- */
-
 const fetcher = (url: string) => fetch(url).then((r) => r.json())
+
+type CourseCategory = "Fundamentos" | "Rompecabezas" | "Juego" | "Recursos"
 
 type CourseCard = {
   id: string
   title: string
   description?: string
-  progress: number
   icon: LucideIcon
+  category: CourseCategory
+  progress: number
 }
 
-const CARDS: CourseCard[] = [
-  {
-    id: "start",
-    title: "Empieza aquí: ¿Qué es GRIP?",
-    description: "Descubre cómo ganarás éxito.",
-    progress: 100,
-    icon: Rocket,
-  },
-  {
-    id: "recordings",
-    title: "Grabaciones de llamadas en directo",
-    description: "Ponte al día con las capacitaciones en vivo que te perdiste.",
-    progress: 0,
-    icon: Radio,
-  },
-  {
-    id: "boveda",
-    title: "Bóveda del conocimiento",
-    description: "Habilidades adicionales, mini cursos y recursos que necesitarás.",
-    progress: 0,
-    icon: Library,
-  },
-  {
-    id: "framing",
-    title: "Framing",
-    description: "Domina la presentación y el marco del guante para robar strikes.",
-    progress: 0,
-    icon: Frame,
-  },
-  {
-    id: "daily-puzzle",
-    title: "Rompecabezas diario",
-    description: "Un reto corto cada día para afinar la lectura del juego.",
-    progress: 0,
-    icon: Puzzle,
-  },
-  {
-    id: "skill-puzzle",
-    title: "Rompecabezas para el desarrollo de habilidades",
-    description: "Ejercicios enfocados para acelerar tu curva de aprendizaje.",
-    progress: 0,
-    icon: Blocks,
-  },
-  {
-    id: "7-day",
-    title: "Reto de 7 días para reconfigurar tu cerebro",
-    description: "Lección breve + desafío diario para desvincularte de la matriz.",
-    progress: 0,
-    icon: Brain,
-  },
-  {
-    id: "persuasion",
-    title: "Persuasión avanzada",
-    description: "Domina los secretos del catcher y la influencia con los pitchers.",
-    progress: 0,
-    icon: Handshake,
-  },
+const CATEGORY_ORDER: CourseCategory[] = ["Fundamentos", "Rompecabezas", "Juego", "Recursos"]
+
+// Para agregar un curso nuevo basta con sumar una entrada aquí.
+const COURSES: CourseCard[] = [
+  { id: "start", title: "Empieza aquí: ¿Qué es GRIP?", description: "Descubre cómo vas a crecer como catcher.", icon: Rocket, category: "Fundamentos", progress: 100 },
+  { id: "recordings", title: "Grabaciones de llamadas en directo", description: "Ponte al día con las capacitaciones en vivo.", icon: Radio, category: "Fundamentos", progress: 0 },
+  { id: "framing", title: "Framing", description: "Domina la presentación y el marco del guante para robar strikes.", icon: Frame, category: "Rompecabezas", progress: 0 },
+  { id: "blocking", title: "Blocking", description: "Bloquea pitcheos en la tierra y protege el plato.", icon: Shield, category: "Rompecabezas", progress: 0 },
+  { id: "throwing", title: "Throwing", description: "Transferencia rápida y tiros precisos a las bases.", icon: Target, category: "Rompecabezas", progress: 0 },
+  { id: "stance", title: "Stance", description: "Postura base y con corredores para cada situación.", icon: Footprints, category: "Rompecabezas", progress: 0 },
+  { id: "daily-puzzle", title: "Rompecabezas diario", description: "Un reto corto cada día para afinar la lectura del juego.", icon: Puzzle, category: "Rompecabezas", progress: 0 },
+  { id: "skill-puzzle", title: "Rompecabezas para el desarrollo de habilidades", description: "Ejercicios enfocados para acelerar tu aprendizaje.", icon: Blocks, category: "Rompecabezas", progress: 0 },
+  { id: "game-situations", title: "Situaciones de juego", description: "Decisiones reales con corredores, outs y conteo.", icon: Gamepad2, category: "Juego", progress: 0 },
+  { id: "pitch-sequence", title: "Pitch Sequence", description: "Construye secuencias para dominar a cada bateador.", icon: ListOrdered, category: "Juego", progress: 0 },
+  { id: "boveda", title: "Bóveda del conocimiento", description: "Mini cursos y recursos adicionales que necesitarás.", icon: Library, category: "Recursos", progress: 0 },
+  { id: "7-day", title: "Reto de 7 días para reconfigurar tu cerebro", description: "Lección breve + desafío diario de mentalidad.", icon: Brain, category: "Recursos", progress: 0 },
+  { id: "persuasion", title: "Persuasión avanzada", description: "La influencia del catcher con sus pitchers.", icon: Handshake, category: "Recursos", progress: 0 },
 ]
 
 const TABS = [
-  { id: "categorias", label: "Categorías" },
-  { id: "en-curso", label: "En curso" },
-  { id: "marcadores", label: "Marcadores" },
+  { id: "categorias", label: "Categorías", icon: LayoutGrid },
+  { id: "en-curso", label: "En curso", icon: Loader },
+  { id: "marcadores", label: "Marcadores", icon: Bookmark },
 ] as const
 
 type TabId = (typeof TABS)[number]["id"]
-
-// Todas las tarjetas están habilitadas. Las que aún no tienen lecciones abren el
-// reproductor con sus módulos marcados como "Próximamente".
-function isUnlocked(_c: CourseCard) {
-  return true
-}
 
 function courseFor(card: CourseCard): Course {
   return (
@@ -210,6 +151,7 @@ export function CoursesView() {
   const [tab, setTab] = useState<TabId>("categorias")
   const [lesson, setLesson] = useState<Course | null>(null)
   const [puzzleOpen, setPuzzleOpen] = useState(false)
+  const [bookmarks, setBookmarks] = useState<Set<string>>(() => new Set())
 
   const { data: progressData, mutate: mutateProgress } = useSWR<{ progress: Record<string, number> }>(
     "/api/progress/courses",
@@ -218,10 +160,7 @@ export function CoursesView() {
   const saved = progressData?.progress ?? {}
 
   // El progreso persistido (BD) tiene prioridad sobre el valor estático de la tarjeta.
-  const cards = useMemo(
-    () => CARDS.map((c) => ({ ...c, progress: saved[c.id] ?? c.progress })),
-    [saved],
-  )
+  const cards = useMemo(() => COURSES.map((c) => ({ ...c, progress: saved[c.id] ?? c.progress })), [saved])
 
   async function saveProgress(courseId: string, progress: number) {
     await mutateProgress(
@@ -243,21 +182,23 @@ export function CoursesView() {
       return
     }
     setLesson(courseFor(card))
-    // Registrar/persistir que el curso quedó en progreso (si aún no está avanzado).
     const current = saved[card.id] ?? card.progress
     if (current < 100 && current < 5) void saveProgress(card.id, Math.max(current, 5))
   }
 
-  // El reproductor reporta el % real al completar lecciones; se refleja en la tarjeta.
   function handleLessonProgress(courseId: string, pct: number) {
     const current = saved[courseId] ?? 0
     if (pct > current) void saveProgress(courseId, pct)
   }
 
-  const visible = useMemo(() => {
-    if (tab === "en-curso") return cards.filter((c) => c.progress > 0 && c.progress < 100)
-    return cards
-  }, [tab, cards])
+  function toggleBookmark(id: string) {
+    setBookmarks((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
 
   if (puzzleOpen) {
     return (
@@ -268,7 +209,6 @@ export function CoursesView() {
     )
   }
 
-  // Vista de lección: ficha de prospecto (reproductor + progresión + veredicto).
   if (lesson) {
     return (
       <LessonPlayer
@@ -279,124 +219,225 @@ export function CoursesView() {
     )
   }
 
-  return (
-    <div className="h-full overflow-y-auto bg-[#0B1120] px-4 py-5 md:px-6">
-      {/* Membrete del dosier */}
-      <div className="flex items-center justify-between border-b border-[#2A3552] pb-3">
-        <div className="flex items-baseline gap-2">
-          <span className="text-sm font-bold tracking-wide text-[#F5F3EC]">GRIP</span>
-          <span className="text-[10px] font-medium uppercase tracking-[2px] text-[#8A93A8]">Dosier de desarrollo</span>
-        </div>
-        <span className="font-serif text-[10px] uppercase tracking-[2px] text-[#C9A227]">Prospecto GR-0248</span>
-      </div>
+  const renderGrid = (list: CourseCard[]) => (
+    <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+      {list.map((c) => (
+        <CourseTile
+          key={c.id}
+          card={c}
+          bookmarked={bookmarks.has(c.id)}
+          onToggleBookmark={() => toggleBookmark(c.id)}
+          onStart={() => startCourse(c)}
+        />
+      ))}
+    </div>
+  )
 
-      <header className="mb-5 mt-4">
-        <h1 className="text-2xl font-bold tracking-tight text-[#F5F3EC]">Cursos</h1>
-        <p className="mt-1 text-sm text-[#8A93A8]">Tu recorrido completo de catcher, paso a paso.</p>
-      </header>
-
-      {/* Pestañas */}
-      <div className="mb-6 flex gap-1 border-b border-[#2A3552]">
-        {TABS.map((t) => {
-          const active = tab === t.id
+  let body: React.ReactNode
+  if (tab === "categorias") {
+    body = (
+      <div className="flex flex-col gap-10">
+        {CATEGORY_ORDER.map((cat) => {
+          const list = cards.filter((c) => c.category === cat)
+          if (list.length === 0) return null
           return (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              className={`relative px-4 py-2.5 text-sm font-semibold transition-colors ${
-                active ? "text-[#C9A227]" : "text-[#8A93A8] hover:text-[#F5F3EC]"
-              }`}
-            >
-              {t.label}
-              {active && <span className="absolute inset-x-0 -bottom-px h-0.5 bg-[#C9A227]" />}
-            </button>
+            <section key={cat} aria-labelledby={`cat-${cat}`} className="flex flex-col gap-4">
+              <h2 id={`cat-${cat}`} className="hud-label text-[color:var(--grip-gold)]">
+                {cat}
+              </h2>
+              {renderGrid(list)}
+            </section>
           )
         })}
       </div>
-
-      {/* Marcadores: aún no hay lecciones guardadas */}
-      {tab === "marcadores" ? (
-        <div className="flex flex-col items-center justify-center border border-dashed border-[#2A3552] bg-[#131C33] px-6 py-16 text-center">
-          <Bookmark className="mb-3 h-8 w-8 text-[#5C6580]" strokeWidth={1.5} />
-          <p className="text-sm font-medium text-[#F5F3EC]">Aún no tienes marcadores</p>
-          <p className="mt-1 max-w-xs text-xs text-[#8A93A8]">
-            Guarda lecciones como favoritas dentro de cada categoría y aparecerán aquí para acceso rápido.
-          </p>
-        </div>
-      ) : visible.length === 0 ? (
-        <div className="flex flex-col items-center justify-center border border-dashed border-[#2A3552] bg-[#131C33] px-6 py-16 text-center">
-          <p className="text-sm font-medium text-[#F5F3EC]">No tienes cursos en progreso</p>
-          <p className="mt-1 text-xs text-[#8A93A8]">Empieza un curso desde la pestaña Categorías.</p>
-        </div>
+    )
+  } else {
+    const list =
+      tab === "en-curso"
+        ? cards.filter((c) => c.progress > 0 && c.progress < 100)
+        : cards.filter((c) => bookmarks.has(c.id))
+    body =
+      list.length > 0 ? (
+        renderGrid(list)
       ) : (
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {visible.map((c) => (
-            <CertificateCard key={c.id} card={c} index={CARDS.findIndex((x) => x.id === c.id)} onStart={() => startCourse(c)} />
-          ))}
+        <EmptyState
+          title={tab === "en-curso" ? "No tienes cursos en progreso" : "Aún no tienes marcadores"}
+          text={
+            tab === "en-curso"
+              ? "Empieza un curso desde la pestaña Categorías."
+              : "Usa el menú ⋮ de cualquier curso para guardarlo aquí."
+          }
+        />
+      )
+  }
+
+  return (
+    <div className="hud h-full overflow-y-auto rounded-xl bg-[color:var(--grip-bg)]">
+      <LearningHeader />
+      <div className="flex flex-col gap-6 px-4 pb-10 pt-6 md:px-6">
+        <div role="tablist" aria-label="Filtrar cursos" className="grid grid-cols-3 gap-2 md:gap-4">
+          {TABS.map((t) => {
+            const active = tab === t.id
+            const Icon = t.icon
+            return (
+              <button
+                key={t.id}
+                role="tab"
+                aria-selected={active}
+                onClick={() => setTab(t.id)}
+                className={`flex h-12 items-center justify-center gap-2 rounded-lg px-2 text-sm transition-colors md:h-14 md:text-base ${
+                  active
+                    ? "bg-[color:var(--grip-gold)] font-semibold text-[color:var(--grip-bg)]"
+                    : "bg-[color:var(--grip-tab)] font-medium text-[color:var(--hud-text)] hover:bg-[#15233a]"
+                }`}
+              >
+                <Icon className="hidden h-5 w-5 sm:block" strokeWidth={1.75} aria-hidden="true" />
+                {t.label}
+              </button>
+            )
+          })}
         </div>
-      )}
+        {body}
+      </div>
     </div>
   )
 }
 
-function CertificateCard({ card, index, onStart }: { card: CourseCard; index: number; onStart: () => void }) {
-  const unlocked = isUnlocked(card)
-  const done = card.progress >= 100
-  const grade = toGrade(card.progress, unlocked)
+function LearningHeader() {
+  const iconBtn =
+    "relative flex h-10 w-10 items-center justify-center rounded-lg text-[color:var(--hud-text)] transition-colors hover:bg-[color:var(--grip-tab)]"
+  return (
+    <header className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-[color:var(--grip-line)] bg-[color:var(--grip-bg)] px-4 py-3 md:px-6">
+      <button className="flex min-w-0 items-center gap-2 text-left">
+        <span className="truncate text-lg font-semibold text-[color:var(--hud-text)] md:text-2xl">
+          Centro de aprendizaje
+        </span>
+        <ChevronDown className="h-5 w-5 shrink-0 text-[color:var(--hud-muted)]" aria-hidden="true" />
+      </button>
+      <div className="flex items-center gap-1">
+        <button className={`${iconBtn} hidden sm:flex`} aria-label="Calendario">
+          <CalendarDays className="h-5 w-5" strokeWidth={1.75} />
+        </button>
+        <button className={iconBtn} aria-label="Notificaciones (nuevas)">
+          <Bell className="h-5 w-5" strokeWidth={1.75} />
+          <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-[color:var(--hud-danger)]" />
+        </button>
+        <button className={`${iconBtn} hidden sm:flex`} aria-label="Ayuda">
+          <CircleHelp className="h-5 w-5" strokeWidth={1.75} />
+        </button>
+        <button className={iconBtn} aria-label="Buscar cursos">
+          <Search className="h-5 w-5" strokeWidth={1.75} />
+        </button>
+        <span className="mx-2 hidden h-6 w-px bg-[color:var(--grip-line)] md:block" />
+        <button className="flex items-center gap-2 rounded-lg px-1 py-1 transition-colors hover:bg-[color:var(--grip-tab)] md:px-2">
+          <span className="flex h-9 w-9 items-center justify-center rounded-full border border-[color:var(--grip-gold-deep)] bg-[color:var(--grip-tab)]">
+            <UserRound className="h-5 w-5 text-[color:var(--grip-gold)]" strokeWidth={1.75} aria-hidden="true" />
+          </span>
+          <span className="hidden text-sm font-medium text-[color:var(--hud-text)] lg:block">Mi perfil</span>
+          <ChevronDown className="hidden h-4 w-4 text-[color:var(--hud-muted)] lg:block" aria-hidden="true" />
+        </button>
+      </div>
+    </header>
+  )
+}
+
+function CourseTile({
+  card,
+  bookmarked,
+  onToggleBookmark,
+  onStart,
+}: {
+  card: CourseCard
+  bookmarked: boolean
+  onToggleBookmark: () => void
+  onStart: () => void
+}) {
+  const [menuOpen, setMenuOpen] = useState(false)
   const Icon = card.icon
+  const progress = Math.round(card.progress)
+  const cta = progress >= 100 ? "Repasar" : progress > 0 ? "Continuar" : "Iniciar Curso"
 
   return (
-    <article
-      className={`group flex flex-col border bg-[#131C33] transition-colors ${
-        unlocked ? "border-[#2A3552] hover:border-[#C9A227]" : "border-[#2A3552] opacity-55"
-      }`}
-    >
-      {/* Barra superior: número de certificado + estado */}
-      <div className="flex items-center justify-between border-b border-[#2A3552] px-4 py-2.5">
-        <span className="font-serif text-[10px] tracking-[1.5px] text-[#8A93A8]">CERT #{certNo(index)}</span>
-        <span
-          className={`text-[9px] font-semibold uppercase tracking-[1.5px] ${
-            grade.graded ? "text-[#C9A227]" : "text-[#5C6580]"
-          }`}
+    <article className="group relative flex flex-col gap-6 rounded-xl border border-[color:var(--grip-line)] bg-[color:var(--grip-card)] p-6 shadow-[0_8px_24px_rgb(0_0_0/0.25)] transition-all duration-200 hover:-translate-y-0.5 hover:border-[color:var(--grip-gold-deep)]">
+      <div className="absolute right-3 top-3">
+        <button
+          onClick={() => setMenuOpen((o) => !o)}
+          aria-label={`Opciones de ${card.title}`}
+          aria-expanded={menuOpen}
+          className="flex h-9 w-9 items-center justify-center rounded-lg text-[color:var(--hud-muted)] transition-colors hover:bg-[color:var(--grip-tab)] hover:text-[color:var(--hud-text)]"
         >
-          {gradeStatus(grade)}
-        </span>
+          <MoreVertical className="h-5 w-5" />
+        </button>
+        {menuOpen && (
+          <div className="absolute right-0 top-10 z-20 w-48 rounded-lg border border-[color:var(--grip-line)] bg-[color:var(--grip-tab)] p-1 shadow-xl">
+            <button
+              onClick={() => {
+                onToggleBookmark()
+                setMenuOpen(false)
+              }}
+              className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-[color:var(--hud-text)] hover:bg-[#1a2a44]"
+            >
+              {bookmarked ? (
+                <BookmarkCheck className="h-4 w-4 text-[color:var(--grip-gold)]" />
+              ) : (
+                <Bookmark className="h-4 w-4" />
+              )}
+              {bookmarked ? "Quitar de marcadores" : "Guardar en marcadores"}
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* Cuerpo */}
-      <div className="flex flex-1 flex-col p-4">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center border border-[#2A3552]">
-            <Icon className="h-5 w-5 text-[#8A93A8]" strokeWidth={1.5} />
-          </div>
-          <span className="font-serif text-[40px] leading-none text-[#F5F3EC]">{grade.graded ? grade.value : "—"}</span>
+      <div className="flex items-start gap-5 pr-8">
+        <div className="flex h-16 w-16 shrink-0 items-center justify-center md:h-24 md:w-24">
+          <Icon className="h-12 w-12 text-[color:var(--grip-gold)] md:h-16 md:w-16" strokeWidth={1.4} aria-hidden="true" />
         </div>
-
-        <h3 className="mt-4 text-[15px] font-semibold leading-snug text-balance text-[#F5F3EC]">{card.title}</h3>
-        {card.description && <p className="mt-1.5 text-[13px] leading-relaxed text-[#8A93A8]">{card.description}</p>}
-
-        {/* Progreso + acción, anclados al fondo */}
-        <div className="mt-auto pt-4">
-          <div className="h-[5px] w-full bg-[#2A3552]">
-            <div className="h-full bg-[#C9A227] transition-all" style={{ width: `${card.progress}%` }} />
-          </div>
-
-          <button
-            onClick={onStart}
-            disabled={!unlocked}
-            className={`mt-4 flex w-full min-h-11 items-center justify-center gap-2 px-4 py-3 text-[11px] font-bold uppercase tracking-[1.5px] transition-colors ${
-              !unlocked
-                ? "cursor-not-allowed border border-[#2A3552] text-[#5C6580]"
-                : done
-                  ? "border border-[#2A3552] text-[#F5F3EC] hover:border-[#C9A227]"
-                  : "bg-[#C9A227] text-[#0B1120] hover:bg-[#d9b943]"
-            }`}
-          >
-            {!unlocked && <Lock className="h-3.5 w-3.5" strokeWidth={2} />}
-            {!unlocked ? "Bloqueado" : done ? "Repasar" : "Iniciar curso"}
-          </button>
+        <div className="flex min-w-0 flex-col gap-2">
+          <h3 className="text-lg font-semibold leading-snug text-balance text-[color:var(--hud-text)] md:text-xl">
+            {card.title}
+          </h3>
+          {card.description && (
+            <p className="text-sm leading-relaxed text-pretty text-[color:var(--hud-muted)]">{card.description}</p>
+          )}
         </div>
+      </div>
+
+      <div className="mt-auto flex flex-col gap-3">
+        <div
+          role="progressbar"
+          aria-valuenow={progress}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-label={`Progreso de ${card.title}`}
+          className="h-2 w-full overflow-hidden rounded-full bg-[color:var(--grip-track)]"
+        >
+          <div
+            className="h-full rounded-full bg-[color:var(--grip-gold-deep)] transition-all"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+        <p className="text-sm text-[color:var(--hud-muted)]">{progress} % completado</p>
+      </div>
+
+      <div className="flex justify-end">
+        <button
+          onClick={onStart}
+          className="flex min-h-11 items-center gap-3 rounded-md bg-[color:var(--grip-gold)] px-6 py-3 text-base font-semibold text-[color:var(--grip-bg)] shadow-[0_4px_12px_rgb(212_162_76/0.25)] transition-[filter] hover:brightness-105"
+        >
+          {cta}
+          <ChevronRight className="h-5 w-5" strokeWidth={2.25} aria-hidden="true" />
+        </button>
       </div>
     </article>
+  )
+}
+
+function EmptyState({ title, text }: { title: string; text: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-[color:var(--grip-line)] bg-[color:var(--grip-card)] px-6 py-16 text-center">
+      <Bookmark className="h-8 w-8 text-[color:var(--hud-muted)]" strokeWidth={1.5} aria-hidden="true" />
+      <p className="text-sm font-medium text-[color:var(--hud-text)]">{title}</p>
+      <p className="max-w-xs text-sm text-[color:var(--hud-muted)]">{text}</p>
+    </div>
   )
 }
