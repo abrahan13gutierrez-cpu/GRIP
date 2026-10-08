@@ -9,10 +9,12 @@ export async function GET(request: Request) {
   const { user, admin } = await getRequestUser(request)
   if (!user) return NextResponse.json(EMPTY)
 
-  const [{ data: profile }, { data: visible }] = await Promise.all([
-    admin.from("profiles").update({ last_seen_at: new Date().toISOString() }).eq("id", user.id).select("username").maybeSingle(),
+  const [heartbeat, { data: profile }, { data: visible }] = await Promise.all([
+    admin.from("profiles").update({ last_seen_at: new Date().toISOString() }).eq("id", user.id),
+    admin.from("profiles").select("username").eq("id", user.id).maybeSingle(),
     admin.from("channels").select("id").in("slug", CHAT_CATEGORIES.flatMap((c) => c.slugs)),
   ])
+  if (heartbeat.error) console.log("[v0] presence heartbeat error:", heartbeat.error.message)
 
   const { data, error } = await admin.rpc("unread_counts", { p_user: user.id, p_handle: profile?.username ?? "" })
   if (error) {

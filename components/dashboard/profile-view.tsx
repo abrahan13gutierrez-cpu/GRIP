@@ -4,6 +4,7 @@ import { useState } from "react"
 import useSWR from "swr"
 import { Settings, Zap, Flame, Trophy, Video, Target, Check, Lock } from "lucide-react"
 import { AccountSettings } from "@/components/dashboard/account-settings"
+import { RankCard } from "@/components/dashboard/rank-card"
 
 const OSWALD = "font-[family-name:var(--font-oswald)]"
 const fetcher = (url: string) => fetch(url).then((r) => r.json())
@@ -146,6 +147,8 @@ export function ProfileView() {
           </p>
         </div>
       </section>
+
+      <RankCard />
 
       {/* ============ TABS ============ */}
       <div className="mt-5 flex gap-1 border-b border-[#1f2740]">
