@@ -9,6 +9,8 @@ type MuxVideoPlayerProps = {
   poster?: string
   accentColor?: string
   className?: string
+  /** Fires when playback reaches the end (used to auto-complete lesson steps). */
+  onEnded?: () => void
 }
 
 /**
@@ -21,15 +23,19 @@ export function MuxVideoPlayer({
   poster,
   accentColor = "#ffb020",
   className = "",
-}: MuxVideoPlayerProps) {
+  onEnded,
+  variant = "framed",
+}: MuxVideoPlayerProps & { variant?: "framed" | "bleed" }) {
+  const frame = variant === "bleed" ? "bg-black" : "overflow-hidden rounded-lg border border-[#262b33] bg-black"
   return (
-    <div className={`overflow-hidden rounded-lg border border-[#262b33] bg-black ${className}`}>
+    <div className={`${frame} ${className}`}>
       <MuxPlayer
         playbackId={playbackId}
         streamType="on-demand"
         metadata={title ? { video_title: title } : undefined}
         poster={poster}
         accentColor={accentColor}
+        onEnded={onEnded}
         style={
           {
             aspectRatio: "16 / 9",

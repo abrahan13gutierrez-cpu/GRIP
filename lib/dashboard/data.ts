@@ -97,15 +97,6 @@ export const CHANNEL_GROUPS: ChannelGroup[] = [
     emoji: "💬",
     channels: [{ id: "grip-chat", name: "grip-chat", emoji: "💬" }],
   },
-  {
-    label: "DAILY LESSONS",
-    emoji: "📅",
-    channels: [
-      { id: "wake-up-say-gm", name: "wake-up-say-gm", emoji: "☀️" },
-      { id: "daily-checklist", name: "daily-checklist", emoji: "✅" },
-      { id: "daily-lessons", name: "daily-lessons", emoji: "⛑️" },
-    ],
-  },
 ]
 
 export type Reaction = { emoji: string; count: number; reacted?: boolean }
