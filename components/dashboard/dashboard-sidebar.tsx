@@ -11,7 +11,6 @@ import { useUnread } from "@/lib/status/client"
 const NAV: { id: ViewId; labelKey: MessageKey; icon: typeof MessageCircle }[] = [
   { id: "chat", labelKey: "nav.chat", icon: MessageCircle },
   { id: "courses", labelKey: "nav.courses", icon: Brain },
-  { id: "marketplace", labelKey: "nav.store", icon: ShoppingBag },
   { id: "friends", labelKey: "nav.friends", icon: User },
   { id: "wallet", labelKey: "nav.wallet", icon: Wallet },
   { id: "rank", labelKey: "nav.rank", icon: Crown },
@@ -20,6 +19,7 @@ const NAV: { id: ViewId; labelKey: MessageKey; icon: typeof MessageCircle }[] = 
 
 // Ítems dentro del popover "Más".
 const MORE_ITEMS: { id: ViewId; labelKey: MessageKey; icon: typeof MessageCircle }[] = [
+  { id: "marketplace", labelKey: "nav.store", icon: ShoppingBag },
   { id: "profile", labelKey: "nav.profile", icon: User },
 ]
 

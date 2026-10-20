@@ -102,7 +102,7 @@ export function LessonPlayer({
   const isDone = active ? completed.has(active.lesson.id) : false
 
   const sidebar = (
-    <LessonSidebar course={course} activeId={activeId} completed={completed} pct={pct} onSelect={select} />
+    <LessonSidebar course={course} activeId={activeId} completed={completed} onSelect={select} />
   )
 
   return (
@@ -173,27 +173,16 @@ export function LessonPlayer({
                   className="w-full"
                 />
 
-                <div className="mx-auto flex w-full max-w-4xl flex-col gap-5 px-4 py-6 md:px-8">
-                  <div>
-                    <div className="text-[10px] font-semibold uppercase tracking-[2px] text-[#8A93A8]">
-                      Módulo {active.moduleIndex + 1} · {active.module.title}
-                    </div>
-                    <h1 className="mt-1.5 text-2xl font-bold tracking-tight text-balance text-[#F5F3EC]">
-                      {active.lesson.title}
-                    </h1>
-                    {active.lesson.body && (
-                      <p className="mt-3 text-[15px] leading-relaxed text-pretty text-[#c7cdd6]">{active.lesson.body}</p>
-                    )}
+                <div className="mx-auto w-full max-w-4xl px-4 py-3 md:px-8 md:py-4">
+                  <div className="text-[10px] font-semibold uppercase tracking-[1.5px] text-[#8A93A8]">
+                    Módulo {active.moduleIndex + 1} · {active.module.title}
                   </div>
-
-                  <button
-                      onClick={() => complete(active.lesson.id)}
-                      disabled={isDone}
-                      className="flex min-h-11 items-center justify-center gap-2 self-start border border-[#2A3552] px-5 py-3 text-[11px] font-bold uppercase tracking-[1.5px] text-[#F5F3EC] transition-colors hover:border-[#C9A227] disabled:text-[#C9A227] disabled:hover:border-[#2A3552]"
-                    >
-                      <Check className="h-4 w-4" />
-                      {isDone ? "Lección completada" : "Marcar como completada"}
-                    </button>
+                  <h1 className="mt-0.5 text-sm font-semibold text-balance text-[#F5F3EC] md:text-base">
+                    {active.lesson.title}
+                  </h1>
+                  {active.lesson.body && (
+                    <p className="mt-2 text-sm leading-relaxed text-pretty text-[#c7cdd6]">{active.lesson.body}</p>
+                  )}
                 </div>
 
                 <section aria-label="Lecciones" className="border-t border-[#2A3552] md:hidden">
@@ -216,11 +205,22 @@ export function LessonPlayer({
           </main>
 
           {/* Barra inferior fija */}
-          <div className="flex shrink-0 items-center justify-end gap-3 border-t border-[#2A3552] px-4 py-3 md:px-6">
+          <div className="flex shrink-0 items-center justify-end gap-2 border-t border-[#2A3552] px-3 py-2.5 md:gap-3 md:px-6 md:py-3">
+            {active && (
+              <button
+                onClick={() => complete(active.lesson.id)}
+                disabled={isDone}
+                aria-label={isDone ? "Lección completada" : "Marcar como completada"}
+                className="flex min-h-11 flex-1 items-center justify-center gap-1.5 border border-[#2A3552] px-3 text-xs font-bold text-[#F5F3EC] transition-colors hover:border-[#C9A227] disabled:text-[#C9A227] disabled:hover:border-[#2A3552] md:flex-none md:px-5 md:text-sm"
+              >
+                <Check className="h-4 w-4 shrink-0" />
+                <span className="truncate">{isDone ? "Completada" : "Completar"}</span>
+              </button>
+            )}
             <button
               onClick={goNext}
               disabled={!hasNext}
-              className="flex min-h-11 w-full items-center justify-center gap-2 md:w-auto bg-[#C9A227] px-6 text-sm font-bold text-[#0B1120] transition-colors hover:bg-[#d9b943] disabled:cursor-not-allowed disabled:bg-[#2A3552] disabled:text-[#5C6580]"
+              className="flex min-h-11 flex-1 items-center justify-center gap-1.5 bg-[#C9A227] px-3 text-xs font-bold text-[#0B1120] transition-colors hover:bg-[#d9b943] disabled:cursor-not-allowed disabled:bg-[#2A3552] disabled:text-[#5C6580] md:flex-none md:px-6 md:text-sm"
             >
               Próximo
               <ChevronRight className="h-4 w-4" />
