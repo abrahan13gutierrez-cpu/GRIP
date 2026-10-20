@@ -36,6 +36,8 @@ import {
   List,
   PinOff,
   Flame,
+  PanelRightClose,
+  PanelRightOpen,
 } from "lucide-react"
 import { DashboardSidebar } from "@/components/dashboard/dashboard-sidebar"
 import { LiveCallModal } from "@/components/daily/live-call-modal"
@@ -872,6 +874,8 @@ function MessagePane({
   onSend,
   onOpenNav,
   onOpenMembers,
+  membersHidden,
+  onToggleMembers,
   onOpenActions,
   onQuickReact,
   onReply,
@@ -886,6 +890,8 @@ function MessagePane({
   onSend: (content: string) => void
   onOpenNav: () => void
   onOpenMembers: () => void
+  membersHidden: boolean
+  onToggleMembers: () => void
   onOpenActions: (msg: DisplayMsg) => void
   onQuickReact: (msg: DisplayMsg, emoji: string) => void
   onReply: (msg: DisplayMsg) => void
@@ -968,6 +974,15 @@ function MessagePane({
             <Users className="h-5 w-5" />
           </button>
         </div>
+        <button
+          onClick={onToggleMembers}
+          aria-label={membersHidden ? t("chat.viewMembers") : t("chat.hideMembers")}
+          aria-pressed={!membersHidden}
+          title={membersHidden ? t("chat.viewMembers") : t("chat.hideMembers")}
+          className="ml-auto hidden h-8 w-8 items-center justify-center rounded-lg text-[#8790a6] transition-colors hover:bg-white/5 hover:text-[#e8ebf2] lg:flex"
+        >
+          {membersHidden ? <PanelRightOpen className="h-5 w-5" /> : <PanelRightClose className="h-5 w-5" />}
+        </button>
       </header>
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto py-3">
@@ -1273,6 +1288,7 @@ export function ChatView({
   const [channelId, setChannelId] = useState<string>("")
   const [leftDrawer, setLeftDrawer] = useState(false)
   const [rightDrawer, setRightDrawer] = useState(false)
+  const [membersHidden, setMembersHidden] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const [actionMsg, setActionMsg] = useState<DisplayMsg | null>(null)
   const [replyingTo, setReplyingTo] = useState<DisplayMsg | null>(null)
@@ -1637,13 +1653,17 @@ export function ChatView({
           onCancelReply={() => setReplyingTo(null)}
           onSend={sendMessage}
           onOpenNav={() => setLeftDrawer(true)}
-          onOpenMembers={() => setRightDrawer(true)}
+            onOpenMembers={() => setRightDrawer(true)}
+            membersHidden={membersHidden}
+            onToggleMembers={() => setMembersHidden((v) => !v)}
           onOpenActions={setActionMsg}
           onQuickReact={toggleReaction}
           onReply={(m) => setReplyingTo(m)}
         />
 
-        <aside className="hidden h-full w-64 shrink-0 flex-col border-l border-[#1f2740] bg-[#0d1322] lg:flex">
+          <aside
+            className={`hidden h-full w-64 shrink-0 flex-col border-l border-[#1f2740] bg-[#0d1322] ${membersHidden ? "" : "lg:flex"}`}
+          >
           <MembersPanel members={members} loading={statusLoading} channelId={channelId || null} />
         </aside>
       </div>

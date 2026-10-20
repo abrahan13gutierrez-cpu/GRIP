@@ -38,6 +38,7 @@ export const en = {
   "chat.noMessages": "No messages yet. Be the first to post.",
   "chat.openMenu": "Open menu",
   "chat.viewMembers": "View members",
+  "chat.hideMembers": "Hide members",
   "chat.messagePlaceholder": "Message #{channel}",
   "chat.send": "Send message",
   "chat.emoji": "Emoji",
