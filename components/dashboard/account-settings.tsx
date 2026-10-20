@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation"
 import { X, User, Bell, IdCard, MonitorSmartphone, CreditCard, SlidersHorizontal, LogOut } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import type { ProfileData } from "@/components/dashboard/profile-view"
+import { useT, type Locale } from "@/i18n"
+import { authedFetch, useStatus } from "@/lib/status/client"
 
 const OSWALD = "font-[family-name:var(--font-oswald)]"
 
@@ -97,6 +99,8 @@ export function AccountSettings({
 
           {section === "account" ? (
             <AccountSection profile={profile} onSaved={onSaved} />
+          ) : section === "profile" ? (
+            <LanguageSection />
           ) : (
             <PlaceholderSection label={SECTIONS.find((s) => s.id === section)?.label ?? ""} />
           )}
@@ -261,6 +265,58 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-[#8790a6]">{label}</span>
       {children}
     </label>
+  )
+}
+
+const LOCALES: Locale[] = ["en", "es"]
+
+function LanguageSection() {
+  const t = useT()
+  const { data, mutate } = useStatus()
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState(false)
+  const current: Locale = data?.me?.locale ?? "en"
+
+  async function choose(locale: Locale) {
+    if (locale === current) return
+    setSaving(true)
+    setError(false)
+    const res = await authedFetch("/api/status", { method: "PATCH", body: JSON.stringify({ locale }) })
+    if (!res.ok) setError(true)
+    await mutate()
+    setSaving(false)
+  }
+
+  return (
+    <div className="max-w-md">
+      <h2 className={`${OSWALD} mb-5 text-lg uppercase tracking-wide text-[#e8ebf2]`}>{t("profile.language")}</h2>
+      <div role="radiogroup" aria-label={t("profile.language")} className="flex flex-col gap-2">
+        {LOCALES.map((l) => {
+          const selected = l === current
+          return (
+            <button
+              key={l}
+              role="radio"
+              aria-checked={selected}
+              disabled={saving}
+              onClick={() => choose(l)}
+              className={`flex items-center justify-between rounded-lg border px-4 py-3 text-left text-sm transition-colors disabled:opacity-60 ${
+                selected
+                  ? "border-[#d4af37]/50 bg-[#d4af37]/10 text-[#d4af37]"
+                  : "border-[#1f2740] bg-[#0a0e1a] text-[#c7cdd6] hover:border-[#3a424d]"
+              }`}
+            >
+              {t(`profile.lang.${l}`)}
+              <span
+                aria-hidden="true"
+                className={`h-3 w-3 rounded-full border ${selected ? "border-[#d4af37] bg-[#d4af37]" : "border-[#4d545e]"}`}
+              />
+            </button>
+          )
+        })}
+      </div>
+      {error && <p className="mt-3 text-sm text-[#ff5c5c]">Could not save language.</p>}
+    </div>
   )
 }
 

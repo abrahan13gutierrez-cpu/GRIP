@@ -1,6 +1,6 @@
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
-import { Geist, Geist_Mono, Oswald } from 'next/font/google'
+import { Geist, Geist_Mono, Inter, Oswald } from 'next/font/google'
 import './globals.css'
 import { SuppressResizeObserverError } from '@/components/suppress-resize-observer-error'
 
@@ -10,6 +10,7 @@ const geistMono = Geist_Mono({
   variable: '--font-geist-mono',
 })
 const oswald = Oswald({ subsets: ['latin'], variable: '--font-oswald' })
+const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
 
 export const metadata: Metadata = {
   title: 'GRIP — Catching University',
@@ -36,7 +37,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`dark bg-background ${geistSans.variable} ${geistMono.variable} ${oswald.variable}`}
+      className={`dark bg-background ${geistSans.variable} ${geistMono.variable} ${oswald.variable} ${inter.variable}`}
     >
       <body className="font-sans antialiased">
         <SuppressResizeObserverError />
