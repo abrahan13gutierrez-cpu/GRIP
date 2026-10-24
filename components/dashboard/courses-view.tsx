@@ -275,14 +275,14 @@ export function CoursesView() {
                 role="tab"
                 aria-selected={active}
                 onClick={() => setTab(t.id)}
-                className={`flex h-11 min-w-0 items-center justify-center gap-2 rounded-lg px-1 text-xs tracking-tight transition-colors sm:h-12 sm:px-2 sm:text-sm sm:tracking-normal md:h-14 md:text-base ${
+                className={`flex h-10 min-w-0 items-center justify-center gap-2 overflow-hidden rounded-lg px-1 text-[11px] leading-tight tracking-tight transition-colors sm:h-12 sm:px-2 sm:text-sm sm:tracking-normal md:h-14 md:text-base ${
                   active
                     ? "bg-[color:var(--grip-gold)] font-semibold text-[color:var(--grip-bg)]"
                     : "bg-[color:var(--grip-tab)] font-medium text-[color:var(--hud-text)] hover:bg-[#15233a]"
                 }`}
               >
                 <Icon className="hidden h-5 w-5 sm:block" strokeWidth={1.75} aria-hidden="true" />
-                {t.label}
+                <span className="min-w-0 truncate">{t.label}</span>
               </button>
             )
           })}
@@ -297,14 +297,7 @@ function LearningHeader() {
   const iconBtn =
     "relative flex h-10 w-10 items-center justify-center rounded-lg text-[color:var(--hud-text)] transition-colors hover:bg-[color:var(--grip-tab)]"
   return (
-    <header className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-[color:var(--grip-line)] bg-[color:var(--grip-bg)] px-3 py-3 sm:px-4 md:px-6">
-      <button className="flex min-w-0 items-center gap-1 text-left sm:gap-2">
-        <span className="truncate text-base font-semibold text-[color:var(--hud-text)] sm:text-lg md:text-2xl">
-          <span className="sm:hidden">Aprendizaje</span>
-          <span className="hidden sm:inline">Centro de aprendizaje</span>
-        </span>
-        <ChevronDown className="h-5 w-5 shrink-0 text-[color:var(--hud-muted)]" aria-hidden="true" />
-      </button>
+    <header className="sticky top-0 z-10 flex items-center justify-end gap-2 border-b border-[color:var(--grip-line)] bg-[color:var(--grip-bg)] px-3 py-2 sm:px-4 sm:py-3 md:px-6">
       <div className="flex items-center gap-1">
         <button className={`${iconBtn} hidden sm:flex`} aria-label="Calendario">
           <CalendarDays className="h-5 w-5" strokeWidth={1.75} />
@@ -356,7 +349,7 @@ function CourseTile({
   const cta = progress >= 100 ? "Repasar" : progress > 0 ? "Continuar" : "Iniciar Curso"
 
   return (
-    <article className="group relative flex min-w-0 flex-col gap-5 rounded-xl border border-[color:var(--grip-line)] bg-[color:var(--grip-card)] p-4 shadow-[0_8px_24px_rgb(0_0_0/0.25)] sm:p-5 lg:gap-6 lg:p-6 transition-all duration-200 hover:-translate-y-0.5 hover:border-[color:var(--grip-gold-deep)]">
+    <article className="group relative flex min-w-0 flex-col gap-3 rounded-xl border border-[color:var(--grip-line)] bg-[color:var(--grip-card)] p-3 shadow-[0_8px_24px_rgb(0_0_0/0.25)] sm:p-5 lg:gap-6 lg:p-6 transition-all duration-200 hover:-translate-y-0.5 hover:border-[color:var(--grip-gold-deep)]">
       <div className="absolute right-3 top-3">
         <button
           onClick={() => (menuOpen ? closeMenu() : setMenuOpen(true))}
@@ -424,9 +417,9 @@ function CourseTile({
         )}
       </div>
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-4 sm:pr-8">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center sm:h-16 sm:w-16 xl:h-20 xl:w-20">
-          <Icon className="h-10 w-10 text-[color:var(--grip-gold)] sm:h-12 sm:w-12 xl:h-14 xl:w-14" strokeWidth={1.4} aria-hidden="true" />
+      <div className="flex flex-row items-start gap-3 pr-8 sm:gap-4">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center sm:h-16 sm:w-16 xl:h-20 xl:w-20">
+          <Icon className="h-8 w-8 text-[color:var(--grip-gold)] sm:h-12 sm:w-12 xl:h-14 xl:w-14" strokeWidth={1.4} aria-hidden="true" />
         </div>
         <div className="flex min-w-0 flex-col gap-2">
           <h3 className="text-base font-semibold leading-snug text-balance text-[color:var(--hud-text)] sm:text-lg xl:text-xl">
@@ -458,7 +451,7 @@ function CourseTile({
       <div className="flex justify-end">
         <button
           onClick={onStart}
-          className="flex min-h-11 w-full items-center justify-center gap-3 rounded-md bg-[color:var(--grip-gold)] px-6 py-3 sm:w-auto text-base font-semibold text-[color:var(--grip-bg)] shadow-[0_4px_12px_rgb(212_162_76/0.25)] transition-[filter] hover:brightness-105"
+          className="flex min-h-10 w-full items-center justify-center gap-2 rounded-md bg-[color:var(--grip-gold)] px-4 py-2 text-sm font-semibold sm:min-h-11 sm:w-auto sm:px-6 sm:py-3 sm:text-base text-[color:var(--grip-bg)] shadow-[0_4px_12px_rgb(212_162_76/0.25)] transition-[filter] hover:brightness-105"
         >
           {cta}
           <ChevronRight className="h-5 w-5" strokeWidth={2.25} aria-hidden="true" />

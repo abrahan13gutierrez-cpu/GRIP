@@ -1,7 +1,7 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
-import { ArrowLeft, Bookmark, Check, ChevronRight, Link2, ListVideo, X } from "lucide-react"
+import { useMemo, useRef, useState } from "react"
+import { ArrowLeft, Bookmark, Check, ChevronRight, Link2 } from "lucide-react"
 import { MuxVideoPlayer } from "@/components/mux/mux-video-player"
 import { LessonSidebar } from "@/components/dashboard/lesson-sidebar"
 import { awardXp } from "@/lib/status/client"
@@ -53,20 +53,12 @@ export function LessonPlayer({
   )
   const [bookmarks, setBookmarks] = useState<Set<string>>(new Set())
   const [copied, setCopied] = useState(false)
-  const [drawerOpen, setDrawerOpen] = useState(false)
+  const mainRef = useRef<HTMLElement>(null)
 
   const activeIdx = Math.max(0, flat.findIndex((f) => f.lesson.id === activeId))
   const active = flat[activeIdx]
   const pct = flat.length ? Math.round((completed.size / flat.length) * 100) : 0
   const hasNext = activeIdx < flat.length - 1
-
-  // Cierra el cajón con Escape.
-  useEffect(() => {
-    if (!drawerOpen) return
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setDrawerOpen(false)
-    window.addEventListener("keydown", onKey)
-    return () => window.removeEventListener("keydown", onKey)
-  }, [drawerOpen])
 
   function complete(id: string) {
     if (completed.has(id)) return
@@ -78,7 +70,7 @@ export function LessonPlayer({
 
   function select(id: string) {
     setActiveId(id)
-    setDrawerOpen(false)
+    mainRef.current?.scrollTo({ top: 0, behavior: "smooth" })
   }
 
   function goNext() {
@@ -110,7 +102,7 @@ export function LessonPlayer({
   const isDone = active ? completed.has(active.lesson.id) : false
 
   const sidebar = (
-    <LessonSidebar course={course} activeId={activeId} completed={completed} pct={pct} onSelect={select} />
+    <LessonSidebar course={course} activeId={activeId} completed={completed} onSelect={select} />
   )
 
   return (
@@ -170,7 +162,7 @@ export function LessonPlayer({
       <div className="flex min-h-0 flex-1">
         {/* Columna principal */}
         <div className="flex min-w-0 flex-1 flex-col">
-          <main className="min-h-0 flex-1 overflow-y-auto">
+          <main ref={mainRef} className="min-h-0 flex-1 overflow-y-auto">
             {active ? (
               // Una sola key por lección: al cambiar de lección se desmonta todo (video incluido).
               <div key={active.lesson.id} className="flex flex-col">
@@ -181,28 +173,24 @@ export function LessonPlayer({
                   className="w-full"
                 />
 
-                <div className="mx-auto flex w-full max-w-4xl flex-col gap-5 px-4 py-6 md:px-8">
-                  <div>
-                    <div className="text-[10px] font-semibold uppercase tracking-[2px] text-[#8A93A8]">
-                      Módulo {active.moduleIndex + 1} · {active.module.title}
-                    </div>
-                    <h1 className="mt-1.5 text-2xl font-bold tracking-tight text-balance text-[#F5F3EC]">
-                      {active.lesson.title}
-                    </h1>
-                    {active.lesson.body && (
-                      <p className="mt-3 text-[15px] leading-relaxed text-pretty text-[#c7cdd6]">{active.lesson.body}</p>
-                    )}
+                <div className="mx-auto w-full max-w-4xl px-4 py-3 md:px-8 md:py-4">
+                  <div className="text-[10px] font-semibold uppercase tracking-[1.5px] text-[#8A93A8]">
+                    Módulo {active.moduleIndex + 1} · {active.module.title}
                   </div>
-
-                  <button
-                      onClick={() => complete(active.lesson.id)}
-                      disabled={isDone}
-                      className="flex min-h-11 items-center justify-center gap-2 self-start border border-[#2A3552] px-5 py-3 text-[11px] font-bold uppercase tracking-[1.5px] text-[#F5F3EC] transition-colors hover:border-[#C9A227] disabled:text-[#C9A227] disabled:hover:border-[#2A3552]"
-                    >
-                      <Check className="h-4 w-4" />
-                      {isDone ? "Lección completada" : "Marcar como completada"}
-                    </button>
+                  <h1 className="mt-0.5 text-sm font-semibold text-balance text-[#F5F3EC] md:text-base">
+                    {active.lesson.title}
+                  </h1>
+                  {active.lesson.body && (
+                    <p className="mt-2 text-sm leading-relaxed text-pretty text-[#c7cdd6]">{active.lesson.body}</p>
+                  )}
                 </div>
+
+                <section aria-label="Lecciones" className="border-t border-[#2A3552] md:hidden">
+                  <h2 className="px-4 pt-4 text-[10px] font-semibold uppercase tracking-[2px] text-[#8A93A8]">
+                    Lecciones
+                  </h2>
+                  {sidebar}
+                </section>
               </div>
             ) : (
               <div className="mx-auto max-w-3xl px-4 py-6 md:px-8">
@@ -217,18 +205,22 @@ export function LessonPlayer({
           </main>
 
           {/* Barra inferior fija */}
-          <div className="flex shrink-0 items-center justify-between gap-3 border-t border-[#2A3552] px-4 py-3 md:px-6">
-            <button
-              onClick={() => setDrawerOpen(true)}
-              className="flex min-h-11 items-center gap-2 border border-[#2A3552] px-4 text-sm font-semibold text-[#F5F3EC] transition-colors hover:border-[#C9A227] md:hidden"
-            >
-              <ListVideo className="h-4 w-4" />
-              Lecciones
-            </button>
+          <div className="flex shrink-0 items-center justify-end gap-2 border-t border-[#2A3552] px-3 py-2.5 md:gap-3 md:px-6 md:py-3">
+            {active && (
+              <button
+                onClick={() => complete(active.lesson.id)}
+                disabled={isDone}
+                aria-label={isDone ? "Lección completada" : "Marcar como completada"}
+                className="flex min-h-11 flex-1 items-center justify-center gap-1.5 border border-[#2A3552] px-3 text-xs font-bold text-[#F5F3EC] transition-colors hover:border-[#C9A227] disabled:text-[#C9A227] disabled:hover:border-[#2A3552] md:flex-none md:px-5 md:text-sm"
+              >
+                <Check className="h-4 w-4 shrink-0" />
+                <span className="truncate">{isDone ? "Completada" : "Completar"}</span>
+              </button>
+            )}
             <button
               onClick={goNext}
               disabled={!hasNext}
-              className="ml-auto flex min-h-11 items-center gap-2 bg-[#C9A227] px-6 text-sm font-bold text-[#0B1120] transition-colors hover:bg-[#d9b943] disabled:cursor-not-allowed disabled:bg-[#2A3552] disabled:text-[#5C6580]"
+              className="flex min-h-11 flex-1 items-center justify-center gap-1.5 bg-[#C9A227] px-3 text-xs font-bold text-[#0B1120] transition-colors hover:bg-[#d9b943] disabled:cursor-not-allowed disabled:bg-[#2A3552] disabled:text-[#5C6580] md:flex-none md:px-6 md:text-sm"
             >
               Próximo
               <ChevronRight className="h-4 w-4" />
@@ -241,30 +233,6 @@ export function LessonPlayer({
           {sidebar}
         </aside>
       </div>
-
-      {/* Cajón inferior (móvil/tablet) */}
-      {drawerOpen && (
-        <div className="fixed inset-0 z-50 md:hidden" role="dialog" aria-modal="true" aria-label="Lecciones">
-          <button
-            aria-label="Cerrar lecciones"
-            onClick={() => setDrawerOpen(false)}
-            className="absolute inset-0 bg-[#0B1120]/80"
-          />
-          <div className="absolute inset-x-0 bottom-0 flex max-h-[85dvh] flex-col border-t border-[#2A3552] bg-[#0B1120]">
-            <div className="flex items-center justify-between border-b border-[#2A3552] px-4 py-3">
-              <span className="text-[10px] font-semibold uppercase tracking-[2px] text-[#8A93A8]">Lecciones</span>
-              <button
-                onClick={() => setDrawerOpen(false)}
-                aria-label="Cerrar"
-                className="flex h-10 w-10 items-center justify-center text-[#F5F3EC]"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <div className="overflow-y-auto">{sidebar}</div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
